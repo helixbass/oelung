@@ -181,7 +181,17 @@ impl RenderingContext {
                 }
             }
             Component::Component(component) => {
-                unimplemented!()
+                let rendered = component.render(self.grid)?;
+                match rendered {
+                    ComponentOrFragment::Component(rendered) => {
+                        self.render(rendered)?;
+                    }
+                    ComponentOrFragment::Fragment(rendered_fragment) => {
+                        for child in rendered_fragment.children {
+                            self.render(child)?;
+                        }
+                    }
+                }
             }
         }
 

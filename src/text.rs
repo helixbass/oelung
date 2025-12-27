@@ -1,7 +1,7 @@
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 
-use crate::{Component, ComponentInterface, Cursor, Error, Grid};
+use crate::{ComponentInterface, ComponentOrFragment, Cursor, Error, Grid};
 
 pub struct Text {
     pub children: TextChildren,
@@ -12,7 +12,7 @@ impl ComponentInterface for Text {
         Some(1)
     }
 
-    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<ComponentOrFragment, anyhow::Error> {
         unreachable!()
     }
 }

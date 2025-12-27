@@ -49,7 +49,7 @@ impl StatusBar {
 }
 
 impl ComponentInterface for StatusBar {
-    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<ComponentOrFragment, anyhow::Error> {
         Ok(soft! {
           %Fragment
             children => [

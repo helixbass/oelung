@@ -1,4 +1,4 @@
-use crate::{Component, ComponentInterface, Error, Grid};
+use crate::{Component, ComponentInterface, ComponentOrFragment, Error, Grid};
 
 pub struct FlexColumn {
     pub children: Vec<Component>,
@@ -10,7 +10,7 @@ impl ComponentInterface for FlexColumn {
         self.flex_grow
     }
 
-    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<ComponentOrFragment, anyhow::Error> {
         unreachable!()
     }
 }

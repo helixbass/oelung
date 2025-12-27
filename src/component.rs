@@ -18,6 +18,27 @@ impl From<FlexColumn> for Component {
     }
 }
 
+pub enum ComponentOrFragment {
+    Component(Component),
+    Fragment(Fragment),
+}
+
+pub struct Fragment {
+    pub children: Vec<Component>,
+}
+
+impl From<Fragment> for ComponentOrFragment {
+    fn from(value: Fragment) -> Self {
+        Self::Fragment(value)
+    }
+}
+
+impl From<Component> for ComponentOrFragment {
+    fn from(value: Component) -> Self {
+        Self::Component(value)
+    }
+}
+
 pub trait ComponentInterface {
     fn flex_grow(&self) -> Option<f64> {
         None
@@ -27,7 +48,7 @@ pub trait ComponentInterface {
         None
     }
 
-    fn render(&self, grid: Grid) -> Result<Component, anyhow::Error>;
+    fn render(&self, grid: Grid) -> Result<ComponentOrFragment, anyhow::Error>;
 }
 
 impl ComponentInterface for Component {
@@ -47,7 +68,7 @@ impl ComponentInterface for Component {
         }
     }
 
-    fn render(&self, grid: Grid) -> Result<Component, anyhow::Error> {
+    fn render(&self, grid: Grid) -> Result<ComponentOrFragment, anyhow::Error> {
         match self {
             Self::Text(text) => text.render(grid),
             Self::FlexColumn(flex_column) => flex_column.render(grid),
