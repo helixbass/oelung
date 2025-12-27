@@ -46,33 +46,29 @@ impl Renderer {
             .queue(cursor::MoveTo(0, 0))
             .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
-        match component {
-            Component::Text(text) => {
-                let mut rendering_context = RenderingContext {
-                    grid: Grid {
-                        left: 0,
-                        top: 0,
-                        width: self.size.width,
-                        height: self.size.height,
-                    },
-                    renderer: self,
-                    staged: _d(),
-                    rendered_cursor_position: _d(),
-                };
-                rendering_context.render_text(text)?;
-                let RenderingContext {
-                    staged,
-                    rendered_cursor_position,
-                    ..
-                } = rendering_context;
-                self.staged_this_render = Some(staged);
-                if let Some(rendered_cursor_position) = rendered_cursor_position {
-                    if self.rendered_cursor_position_in_this_render.is_some() {
-                        return Err(Error::RenderedCursorMoreThanOnce);
-                    }
-                    self.rendered_cursor_position_in_this_render = Some(rendered_cursor_position);
-                }
+        let mut rendering_context = RenderingContext {
+            grid: Grid {
+                left: 0,
+                top: 0,
+                width: self.size.width,
+                height: self.size.height,
+            },
+            renderer: self,
+            staged: _d(),
+            rendered_cursor_position: _d(),
+        };
+        rendering_context.render(component)?;
+        let RenderingContext {
+            staged,
+            rendered_cursor_position,
+            ..
+        } = rendering_context;
+        self.staged_this_render = Some(staged);
+        if let Some(rendered_cursor_position) = rendered_cursor_position {
+            if self.rendered_cursor_position_in_this_render.is_some() {
+                return Err(Error::RenderedCursorMoreThanOnce);
             }
+            self.rendered_cursor_position_in_this_render = Some(rendered_cursor_position);
         }
 
         self.render_staged();
@@ -119,6 +115,14 @@ pub struct RenderingContext<'a> {
 }
 
 impl<'a> RenderingContext<'a> {
+    pub fn render(&mut self, component: Component) -> Result<(), Error> {
+        match component {
+            Component::Text(text) => {
+                unimplemented!()
+            }
+        }
+    }
+
     pub fn render_text(&mut self, text: Text) -> Result<(), Error> {
         for child in text.children {
             match child {
