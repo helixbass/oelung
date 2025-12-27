@@ -180,6 +180,9 @@ impl RenderingContext {
                     }
                 }
             }
+            Component::Component(component) => {
+                unimplemented!()
+            }
         }
 
         Ok(())

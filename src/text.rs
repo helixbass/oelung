@@ -1,7 +1,7 @@
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 
-use crate::{ComponentInterface, Cursor, Error};
+use crate::{Component, ComponentInterface, Cursor, Error, Grid};
 
 pub struct Text {
     pub children: TextChildren,
@@ -10,6 +10,10 @@ pub struct Text {
 impl ComponentInterface for Text {
     fn height(&self) -> Option<u16> {
         Some(1)
+    }
+
+    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
+        unreachable!()
     }
 }
 
