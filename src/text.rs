@@ -13,7 +13,7 @@ pub struct TextBuilder {
 }
 
 impl TextBuilder {
-    pub fn text_child(&mut self, child: impl Into<SmolStr>) -> &mut Self {
+    pub fn text_child(mut self, child: impl Into<SmolStr>) -> Self {
         self.children.push(child.into().into());
         self
     }
