@@ -10,4 +10,12 @@ pub enum Error {
     Crossterm(String),
     #[error("Rendered cursor more than once")]
     RenderedCursorMoreThanOnce,
+    #[error("{0}")]
+    Anyhow(anyhow::Error),
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(value: anyhow::Error) -> Self {
+        Self::Anyhow(value)
+    }
 }

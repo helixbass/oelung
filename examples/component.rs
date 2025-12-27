@@ -1,6 +1,6 @@
 use crossterm::event::{self, Event, KeyCode};
 
-use oelung::{soft, Component, ComponentInterface, Grid, Renderer};
+use oelung::{soft, ComponentInterface, ComponentOrFragment, Grid, Renderer};
 
 fn main() -> Result<(), anyhow::Error> {
     let mut renderer = Renderer::try_new()?;

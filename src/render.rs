@@ -10,8 +10,8 @@ use crossterm::{
 use squalid::_d;
 
 use crate::{
-    size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size,
-    TakeOverScreenGuard, Text, TextChild,
+    size, take_over_screen, Component, ComponentInterface, ComponentOrFragment, Cursor, Error,
+    Offset, Size, TakeOverScreenGuard, Text, TextChild,
 };
 
 pub struct Renderer {
