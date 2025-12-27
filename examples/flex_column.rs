@@ -1,6 +1,6 @@
 use crossterm::event::{self, Event, KeyCode};
 
-use oelung::{soft, Cursor, Renderer, TextBuilder};
+use oelung::{soft, Renderer};
 
 fn main() -> Result<(), anyhow::Error> {
     let mut renderer = Renderer::try_new()?;

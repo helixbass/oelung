@@ -57,6 +57,7 @@ impl Parse for FlexColumn {
 
         while input.peek(Ident) {
             let key = input.parse::<Ident>().unwrap().to_string();
+            input.parse::<Token![=>]>()?;
             match &*key {
                 "children" => {
                     assert!(children.is_none(), "Already saw 'children' key");
@@ -125,6 +126,7 @@ impl Parse for Cursor {
 
         while input.peek(Ident) {
             let key = input.parse::<Ident>().unwrap().to_string();
+            input.parse::<Token![=>]>()?;
             match &*key {
                 "x" => {
                     assert!(x.is_none(), "Already saw 'x' key");
@@ -174,6 +176,7 @@ impl Parse for Text {
             false => {
                 while input.peek(Ident) {
                     let key = input.parse::<Ident>().unwrap().to_string();
+                    input.parse::<Token![=>]>()?;
                     match &*key {
                         "text" => {
                             assert!(text.is_none(), "Already saw 'text' key");

@@ -19,6 +19,7 @@ impl FlexColumnBuilder {
 
     pub fn flex_grow(mut self, value: f64) -> Self {
         self.flex_grow = Some(value);
+        self
     }
 
     pub fn build(self) -> Result<FlexColumn, Error> {
