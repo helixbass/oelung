@@ -162,7 +162,7 @@ impl RenderingContext {
                         rendered_cursor_position,
                         ..
                     } = rendering_context;
-                    assert_eq!(staged.lines.len(), usize::from(height));
+                    assert!(staged.lines.len() <= usize::from(height));
                     self.staged.lines.extend(staged.lines);
                     num_rows_rendered += height;
                     if let Some(rendered_cursor_position) = rendered_cursor_position {
