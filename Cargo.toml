@@ -4,3 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+crossterm = "0.29.0"
+derive_builder = "0.20.2"
+smallvec = "1.15.1"
+smol_str = "0.3.4"
+thiserror = "2.0.17"
+
+[dev-dependencies]
+anyhow = "1.0.100"
