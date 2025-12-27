@@ -9,8 +9,8 @@ use crossterm::{
 use squalid::_d;
 
 use crate::{
-    size, take_over_screen, Component, Cursor, Error, Offset, Size, TakeOverScreenGuard, Text,
-    TextChild,
+    size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size,
+    TakeOverScreenGuard, Text, TextChild,
 };
 
 pub struct Renderer {
@@ -52,7 +52,7 @@ impl Renderer {
             width: self.size.width,
             height: self.size.height,
         };
-        let mut rendering_context = RenderingContext::new(self, grid);
+        let mut rendering_context = RenderingContext::new(grid);
         rendering_context.render(component)?;
         let RenderingContext {
             staged,
@@ -104,7 +104,6 @@ impl Renderer {
 }
 
 pub struct RenderingContext<'a> {
-    pub renderer: &'a mut Renderer,
     pub grid: Grid,
     pub staged: Staged,
     pub rendered_cursor_position: Option<Position>,
@@ -112,9 +111,8 @@ pub struct RenderingContext<'a> {
 }
 
 impl<'a> RenderingContext<'a> {
-    pub fn new(renderer: &'a mut Renderer, grid: Grid) -> Self {
+    pub fn new(grid: Grid) -> Self {
         Self {
-            renderer,
             grid,
             staged: _d(),
             rendered_cursor_position: _d(),
@@ -128,7 +126,54 @@ impl<'a> RenderingContext<'a> {
                 self.staged.lines.push(_d());
                 self.render_text(text, 0)?;
             }
-            Component::FlexColumn(flex_column) => unimplemented!(),
+            Component::FlexColumn(flex_column) => {
+                assert_eq!(
+                    flex_column
+                        .children
+                        .iter()
+                        .filter(|child| child.flex_grow() == Some(1.0) && child.height().is_none())
+                        .count(),
+                    1
+                );
+                assert_eq!(
+                    flex_column
+                        .children
+                        .iter()
+                        .filter(|child| child.height() == Some(1) && child.flex_grow().is_none())
+                        .count(),
+                    flex_column.children.len() - 1
+                );
+                let mut num_rows_rendered = 0;
+                let num_children = flex_column.children.len();
+                for child in flex_column.children {
+                    let height = if child.height() == Some(1) {
+                        1
+                    } else {
+                        self.grid.height - (u16::try_from(num_children).unwrap() - 1)
+                    };
+                    let mut rendering_context = RenderingContext::new(Grid {
+                        left: self.grid.left,
+                        top: self.grid.top + num_rows_rendered,
+                        width: self.grid.width,
+                        height,
+                    });
+                    rendering_context.render(child)?;
+                    let RenderingContext {
+                        staged,
+                        rendered_cursor_position,
+                        ..
+                    } = rendering_context;
+                    assert_eq!(staged.lines.len(), usize::from(height));
+                    self.staged.lines.extend(staged.lines);
+                    num_rows_rendered += height;
+                    if let Some(rendered_cursor_position) = rendered_cursor_position {
+                        if self.rendered_cursor_position.is_some() {
+                            return Err(Error::RenderedCursorMoreThanOnce);
+                        }
+                        self.rendered_cursor_position = Some(rendered_cursor_position);
+                    }
+                }
+            }
         }
 
         Ok(())
