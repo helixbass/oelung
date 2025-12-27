@@ -51,7 +51,12 @@ impl StatusBar {
 impl ComponentInterface for StatusBar {
     fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
         Ok(soft! {
-          %Text "some_file.rs [1%] 999 lines |1"
+          %Fragment
+            children => [
+              %Text "some_file.rs ["
+              %Text self.current_percent.to_string()
+              %Text "%] 999 lines |1"
+            ]
         })
     }
 
