@@ -103,14 +103,14 @@ impl Renderer {
     }
 }
 
-pub struct RenderingContext<'a> {
+pub struct RenderingContext {
     pub grid: Grid,
     pub staged: Staged,
     pub rendered_cursor_position: Option<Position>,
     // pub current_line_number: Option<usize>,
 }
 
-impl<'a> RenderingContext<'a> {
+impl RenderingContext {
     pub fn new(grid: Grid) -> Self {
         Self {
             grid,
@@ -127,22 +127,21 @@ impl<'a> RenderingContext<'a> {
                 self.render_text(text, 0)?;
             }
             Component::FlexColumn(flex_column) => {
-                assert_eq!(
+                assert!(
                     flex_column
                         .children
                         .iter()
                         .filter(|child| child.flex_grow() == Some(1.0) && child.height().is_none())
-                        .count(),
-                    1
+                        .count()
+                        <= 1
                 );
-                assert_eq!(
-                    flex_column
-                        .children
-                        .iter()
-                        .filter(|child| child.height() == Some(1) && child.flex_grow().is_none())
-                        .count(),
-                    flex_column.children.len() - 1
-                );
+                assert!(flex_column
+                    .children
+                    .iter()
+                    .all(
+                        |child| child.flex_grow() == Some(1.0) && child.height().is_none()
+                            || child.flex_grow() == None && child.height() == Some(1)
+                    ));
                 let mut num_rows_rendered = 0;
                 let num_children = flex_column.children.len();
                 for child in flex_column.children {
