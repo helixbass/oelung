@@ -17,8 +17,8 @@ impl FlexColumnBuilder {
         self
     }
 
-    pub fn flex_grow(mut self, value: f64) -> Self {
-        self.flex_grow = Some(value);
+    pub fn flex_grow(mut self, value: impl Into<f64>) -> Self {
+        self.flex_grow = Some(value.into());
         self
     }
 

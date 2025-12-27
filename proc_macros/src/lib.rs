@@ -46,9 +46,11 @@ impl Parse for Element {
 impl ToTokens for Element {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
-            Self::FlexColumn(flex_column) => quote! { #flex_column.into() },
-            Self::Text(text) => quote! { #text.into() },
-            Self::Cursor(cursor) => quote! { #cursor.into() },
+            Self::FlexColumn(flex_column) => {
+                quote! { ::oelung::Component::FlexColumn(#flex_column) }
+            }
+            Self::Text(text) => quote! { ::oelung::Component::Text(#text) },
+            Self::Cursor(cursor) => quote! { ::oelung::Component::Cursor(#cursor) },
         }
         .to_tokens(tokens)
     }
@@ -56,13 +58,13 @@ impl ToTokens for Element {
 
 struct FlexColumn {
     pub children: Vec<Element>,
-    pub flex_grow: Option<LitFloat>,
+    pub flex_grow: Option<LitFloatOrInt>,
 }
 
 impl Parse for FlexColumn {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut children: Option<Vec<Element>> = _d();
-        let mut flex_grow: Option<LitFloat> = _d();
+        let mut flex_grow: Option<LitFloatOrInt> = _d();
 
         while input.peek(Ident) {
             let key = input.parse::<Ident>().unwrap().to_string();
@@ -221,6 +223,30 @@ impl ToTokens for Text {
                 .text_child(#text)
                 #cursor
                 .build()?
+        }
+        .to_tokens(tokens)
+    }
+}
+
+enum LitFloatOrInt {
+    Float(LitFloat),
+    Int(LitInt),
+}
+
+impl Parse for LitFloatOrInt {
+    fn parse(input: ParseStream) -> Result<Self> {
+        match input.peek(LitFloat) {
+            true => Ok(Self::Float(input.parse().unwrap())),
+            false => Ok(Self::Int(input.parse().unwrap())),
+        }
+    }
+}
+
+impl ToTokens for LitFloatOrInt {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::Float(float) => quote! { #float },
+            Self::Int(int) => quote! { #int },
         }
         .to_tokens(tokens)
     }
