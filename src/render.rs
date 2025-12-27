@@ -2,6 +2,7 @@ use std::io::{stdout, StdoutLock, Write};
 
 use crossterm::{
     cursor,
+    style::Print,
     terminal::{Clear, ClearType},
     QueueableCommand,
 };
@@ -69,6 +70,10 @@ impl Renderer {
     }
 
     fn print_text(&mut self, text: &str) -> Result<(), Error> {
-        unimplemented!()
+        self.stdout
+            .queue(Print(text))
+            .map_err(|_| Error::Crossterm("print failed".into()))?;
+
+        Ok(())
     }
 }
