@@ -1,0 +1,12 @@
+[package]
+name = "oelung_proc_macros"
+version = "0.0.1-dev.0"
+edition = "2024"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.42"
+syn = { version = "2.0.111", features = [ "full" ] }
+proc-macro2 = "1.0.103"
