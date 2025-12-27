@@ -4,7 +4,7 @@ use squalid::{OptionExtDefault, _d};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream, Result},
-    parse_macro_input, Ident, LitFloat, Token,
+    parse_macro_input, Ident, LitFloat, LitInt, Token,
 };
 
 enum Element {
@@ -74,6 +74,38 @@ impl Parse for FlexColumn {
         Ok(Self {
             children: children.expect("Expected `children`"),
             flex_grow,
+        })
+    }
+}
+
+struct Cursor {
+    pub x: LitInt,
+    pub y: LitInt,
+}
+
+impl Parse for Cursor {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut x: Option<LitInt> = _d();
+        let mut y: Option<LitInt> = _d();
+
+        while input.peek(Ident) {
+            let key = input.parse::<Ident>().unwrap().to_string();
+            match &*key {
+                "x" => {
+                    assert!(x.is_none(), "Already saw 'x' key");
+                    x = Some(input.parse()?);
+                }
+                "y" => {
+                    assert!(y.is_none(), "Already saw 'y' key");
+                    y = Some(input.parse()?);
+                }
+                key => return Err(input.error(format!("Unexpected key `{key}`"))),
+            }
+        }
+
+        Ok(Self {
+            x: x.expect("Expected `x`"),
+            y: y.expect("Expected `y`"),
         })
     }
 }
