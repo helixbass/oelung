@@ -6,7 +6,7 @@ use crossterm::{
     QueueableCommand,
 };
 
-use crate::{size, take_over_screen, Component, Error, Size, TakeOverScreenGuard, Text};
+use crate::{size, take_over_screen, Component, Error, Size, TakeOverScreenGuard, Text, TextChild};
 
 pub struct Renderer {
     pub take_over_screen_guard: TakeOverScreenGuard,
@@ -59,9 +59,16 @@ impl Renderer {
 
     fn render_text(&mut self, text: Text) -> Result<(), Error> {
         for child in text.children {
-            match child {}
+            match child {
+                TextChild::Text(text) => self.print_text(&text)?,
+                TextChild::Nested(text) => self.render_text(*text)?,
+            }
         }
 
         Ok(())
+    }
+
+    fn print_text(&mut self, text: &str) -> Result<(), Error> {
+        unimplemented!()
     }
 }

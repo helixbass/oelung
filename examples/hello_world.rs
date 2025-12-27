@@ -3,7 +3,7 @@ use crossterm::event::{self, Event, KeyCode};
 use oelung::{Renderer, TextBuilder};
 
 fn main() -> Result<(), anyhow::Error> {
-    let renderer = Renderer::new();
+    let mut renderer = Renderer::try_new()?;
 
     render_screen(&mut renderer)?;
 
@@ -25,7 +25,7 @@ fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
             .text_child("(hit q to quit)")
             .build()?
             .into(),
-    );
+    )?;
 
     Ok(())
 }
