@@ -16,7 +16,7 @@ pub struct Renderer {
     pub take_over_screen_guard: TakeOverScreenGuard,
     pub stdout: StdoutLock<'static>,
     pub size: Size,
-    pub has_rendered_cursor_already_in_this_render: bool,
+    pub rendered_cursor_position_in_this_render: Option<Position>,
 }
 
 impl Renderer {
@@ -25,20 +25,17 @@ impl Renderer {
             take_over_screen_guard: take_over_screen()?,
             stdout: stdout().lock(),
             size: size()?,
-            has_rendered_cursor_already_in_this_render: _d(),
+            rendered_cursor_position_in_this_render: _d(),
         })
     }
 
     pub fn render(&mut self, component: Component) -> Result<(), Error> {
-        self.has_rendered_cursor_already_in_this_render = false;
+        self.rendered_cursor_position_in_this_render = _d();
         self.size = size()?;
 
         self.stdout
             .queue(Clear(ClearType::All))
             .map_err(|_| Error::Crossterm("clear failed".into()))?;
-        self.stdout
-            .queue(cursor::SavePosition)
-            .map_err(|_| Error::Crossterm("save position failed".into()))?;
         self.stdout
             .queue(cursor::Hide)
             .map_err(|_| Error::Crossterm("hide failed".into()))?;
@@ -50,12 +47,14 @@ impl Renderer {
             Component::Text(text) => self.render_text(text)?,
         }
 
-        self.stdout
-            .queue(cursor::RestorePosition)
-            .map_err(|_| Error::Crossterm("restore position failed".into()))?;
-        self.stdout
-            .queue(cursor::Show)
-            .map_err(|_| Error::Crossterm("show failed".into()))?;
+        if let Some(cursor_position) = self.rendered_cursor_position_in_this_render {
+            self.stdout
+                .queue(cursor::MoveTo(cursor_position.column, cursor_position.row))
+                .map_err(|_| Error::Crossterm("move to failed".into()))?;
+            self.stdout
+                .queue(cursor::Show)
+                .map_err(|_| Error::Crossterm("show failed".into()))?;
+        }
 
         self.stdout
             .flush()
@@ -85,11 +84,17 @@ impl Renderer {
     }
 
     fn render_cursor(&mut self, cursor: Cursor) -> Result<(), Error> {
-        if self.has_rendered_cursor_already_in_this_render {
+        if self.rendered_cursor_position_in_this_render.is_some() {
             return Err(Error::RenderedCursorMoreThanOnce);
         }
-        self.has_rendered_cursor_already_in_this_render = true;
+        self.rendered_cursor_position_in_this_render = Some(unimplemented!());
 
         Ok(())
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Position {
+    pub row: u16,
+    pub column: u16,
 }
