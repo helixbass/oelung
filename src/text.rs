@@ -1,7 +1,7 @@
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 
-use crate::Error;
+use crate::{Cursor, Error};
 
 pub struct Text {
     pub children: TextChildren,
@@ -33,6 +33,7 @@ pub type TextChildren = SmallVec<[TextChild; 10]>;
 pub enum TextChild {
     Nested(Box<Text>),
     Text(SmolStr),
+    Cursor(Cursor),
 }
 
 impl From<Text> for TextChild {
@@ -44,5 +45,11 @@ impl From<Text> for TextChild {
 impl From<SmolStr> for TextChild {
     fn from(value: SmolStr) -> Self {
         Self::Text(value)
+    }
+}
+
+impl From<Cursor> for TextChild {
+    fn from(value: Cursor) -> Self {
+        Self::Cursor(value)
     }
 }

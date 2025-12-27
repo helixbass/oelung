@@ -63,6 +63,7 @@ impl Renderer {
             match child {
                 TextChild::Text(text) => self.print_text(&text)?,
                 TextChild::Nested(text) => self.render_text(*text)?,
+                TextChild::Cursor(cursor) => self.render_cursor(cursor)?,
             }
         }
 
