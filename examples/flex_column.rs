@@ -23,10 +23,11 @@ fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
             children => [
                 %FlexColumn
                     children => [
-                        %Text "Top area"
-                        %Cursor.Relative
-                            x => 0
-                            y => 0
+                        %Text
+                            text => "Top area"
+                            cursor => %Cursor.Relative
+                                x => 0
+                                y => 0
                     ]
                     flex_grow => 1
                 %Text "some_file.rs [1%] 999 lines |1"

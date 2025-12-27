@@ -85,18 +85,29 @@ impl Parse for FlexColumn {
 
 impl ToTokens for FlexColumn {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let children = self
+            .children
+            .iter()
+            .map(|child| {
+                quote! {
+                    .child(#child)
+                }
+            })
+            .collect::<Vec<_>>();
+        let flex_grow = match self.flex_grow.as_ref() {
+            None => quote! {},
+            Some(flex_grow) => quote! {
+                .flex_grow(#flex_grow)
+            },
+        };
+
         quote! {
-            ::oelung::FlexColumnBuilder::default()
-                .child(
-                    TextBuilder::default()
-                        .text_child("Top area")
-                        .cursor_child(Cursor::relative().x(0).y(0))
-                        .build()?
-                        .into(),
-                )
-                .flex_grow(1)
-                .build()?
-                .into()
+            Into::<::oelung::Component>::into(
+                ::oelung::FlexColumnBuilder::default()
+                    #(#children)*
+                    #flex_grow
+                    .build()?
+            )
         }
         .to_tokens(tokens)
     }
@@ -134,15 +145,76 @@ impl Parse for Cursor {
     }
 }
 
+impl ToTokens for Cursor {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let x = &self.x;
+        let y = &self.y;
+
+        quote! {
+            Into::<::oelung::Component>::into(::oelung::Cursor::relative().x(#x).y(#y))
+        }
+        .to_tokens(tokens)
+    }
+}
+
 struct Text {
     pub text: LitStr,
+    pub cursor: Option<Cursor>,
 }
 
 impl Parse for Text {
     fn parse(input: ParseStream) -> Result<Self> {
-        let text: LitStr = input.parse()?;
+        let mut text: Option<LitStr> = _d();
+        let mut cursor: Option<Cursor> = _d();
 
-        Ok(Self { text })
+        match input.peek(LitStr) {
+            true => {
+                text = input.parse().unwrap();
+            }
+            false => {
+                while input.peek(Ident) {
+                    let key = input.parse::<Ident>().unwrap().to_string();
+                    match &*key {
+                        "text" => {
+                            assert!(text.is_none(), "Already saw 'text' key");
+                            text = Some(input.parse()?);
+                        }
+                        "cursor" => {
+                            assert!(cursor.is_none(), "Already saw 'cursor' key");
+                            cursor = Some(input.parse()?);
+                        }
+                        key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                    }
+                }
+            }
+        }
+
+        Ok(Self {
+            text: text.expect("Expected `text`"),
+            cursor,
+        })
+    }
+}
+
+impl ToTokens for Text {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let text = &self.text;
+        let cursor = match self.cursor.as_ref() {
+            None => quote! {},
+            Some(cursor) => quote! {
+                .cursor_child(#cursor)
+            },
+        };
+
+        quote! {
+            Into::<::oelung::Component>::into(
+                ::oelung::TextBuilder::default()
+                .text_child(#text)
+                #cursor
+                .build()?
+            )
+        }
+        .to_tokens(tokens)
     }
 }
 
