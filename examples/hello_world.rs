@@ -1,11 +1,11 @@
 use crossterm::event::{self, Event, KeyCode};
 
-use oelung::TextBuilder;
+use oelung::{Renderer, TextBuilder};
 
 fn main() -> Result<(), anyhow::Error> {
-    let _guard = oelung::take_over_screen();
+    let renderer = Renderer::new();
 
-    render_screen()?;
+    render_screen(&mut renderer)?;
 
     loop {
         match event::read()? {
@@ -17,8 +17,8 @@ fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn render_screen() -> Result<(), anyhow::Error> {
-    oelung::render(
+fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
+    renderer.render(
         TextBuilder::default()
             .text_child("Hello world")
             .text_child(" ")

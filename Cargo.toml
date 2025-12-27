@@ -8,6 +8,7 @@ crossterm = "0.29.0"
 derive_builder = "0.20.2"
 smallvec = "1.15.1"
 smol_str = "0.3.4"
+squalid = { git = "https://github.com/helixbass/squalid", rev = "646f6bf" }
 thiserror = "2.0.17"
 
 [dev-dependencies]
