@@ -1,4 +1,5 @@
 use std::io::{stdout, StdoutLock, Write};
+use std::iter;
 
 use crossterm::{
     cursor,
@@ -163,7 +164,13 @@ impl RenderingContext {
                         ..
                     } = rendering_context;
                     assert!(staged.lines.len() <= usize::from(height));
+                    let num_less_rendered_vs_height = usize::from(height) - staged.lines.len();
                     self.staged.lines.extend(staged.lines);
+                    if num_less_rendered_vs_height > 0 {
+                        self.staged
+                            .lines
+                            .extend(iter::repeat(String::new()).take(num_less_rendered_vs_height));
+                    }
                     num_rows_rendered += height;
                     if let Some(rendered_cursor_position) = rendered_cursor_position {
                         if self.rendered_cursor_position.is_some() {
