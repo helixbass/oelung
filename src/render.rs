@@ -46,17 +46,13 @@ impl Renderer {
             .queue(cursor::MoveTo(0, 0))
             .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
-        let mut rendering_context = RenderingContext {
-            grid: Grid {
-                left: 0,
-                top: 0,
-                width: self.size.width,
-                height: self.size.height,
-            },
-            renderer: self,
-            staged: _d(),
-            rendered_cursor_position: _d(),
+        let grid = Grid {
+            left: 0,
+            top: 0,
+            width: self.size.width,
+            height: self.size.height,
         };
+        let mut rendering_context = RenderingContext::new(self, grid);
         rendering_context.render(component)?;
         let RenderingContext {
             staged,
@@ -71,7 +67,7 @@ impl Renderer {
             self.rendered_cursor_position_in_this_render = Some(rendered_cursor_position);
         }
 
-        self.render_staged();
+        self.render_staged()?;
 
         if let Some(cursor_position) = self.rendered_cursor_position_in_this_render {
             self.stdout
@@ -112,22 +108,36 @@ pub struct RenderingContext<'a> {
     pub grid: Grid,
     pub staged: Staged,
     pub rendered_cursor_position: Option<Position>,
+    // pub current_line_number: Option<usize>,
 }
 
 impl<'a> RenderingContext<'a> {
-    pub fn render(&mut self, component: Component) -> Result<(), Error> {
-        match component {
-            Component::Text(text) => {
-                unimplemented!()
-            }
+    pub fn new(renderer: &'a mut Renderer, grid: Grid) -> Self {
+        Self {
+            renderer,
+            grid,
+            staged: _d(),
+            rendered_cursor_position: _d(),
+            // current_line_number: _d(),
         }
     }
 
-    pub fn render_text(&mut self, text: Text) -> Result<(), Error> {
+    pub fn render(&mut self, component: Component) -> Result<(), Error> {
+        match component {
+            Component::Text(text) => {
+                self.staged.lines.push(_d());
+                self.render_text(text, 0)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn render_text(&mut self, text: Text, line_num: usize) -> Result<(), Error> {
         for child in text.children {
             match child {
-                TextChild::Text(text) => self.print_text(&text)?,
-                TextChild::Nested(text) => self.render_text(*text)?,
+                TextChild::Text(text) => self.print_text(&text, line_num)?,
+                TextChild::Nested(text) => self.render_text(*text, line_num)?,
                 TextChild::Cursor(cursor) => self.render_cursor(cursor)?,
             }
         }
@@ -135,11 +145,8 @@ impl<'a> RenderingContext<'a> {
         Ok(())
     }
 
-    fn print_text(&mut self, text: &str) -> Result<(), Error> {
-        unimplemented!();
-        self.stdout
-            .queue(Print(text))
-            .map_err(|_| Error::Crossterm("print failed".into()))?;
+    fn print_text(&mut self, text: &str, line_num: usize) -> Result<(), Error> {
+        self.staged.lines[line_num].push_str(text);
 
         Ok(())
     }
