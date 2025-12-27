@@ -10,16 +10,23 @@ pub struct Text {
 #[derive(Default)]
 pub struct TextBuilder {
     pub children: TextChildren,
+    pub has_seen_non_cursor_child: bool,
 }
 
 impl TextBuilder {
     pub fn text_child(mut self, child: impl Into<SmolStr>) -> Self {
+        self.has_seen_non_cursor_child = true;
         self.children.push(child.into().into());
         self
     }
 
+    pub fn cursor_child(mut self, child: Cursor) -> Self {
+        self.children.push(child.into());
+        self
+    }
+
     pub fn build(self) -> Result<Text, Error> {
-        if self.children.is_empty() {
+        if !self.has_seen_non_cursor_child {
             return Err(Error::TextBuilder("empty children".into()));
         }
         Ok(Text {
