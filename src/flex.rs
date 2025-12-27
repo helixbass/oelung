@@ -1,8 +1,14 @@
-use crate::{Component, Error};
+use crate::{Component, ComponentInterface, Error};
 
 pub struct FlexColumn {
     pub children: Vec<Component>,
     pub flex_grow: Option<f64>,
+}
+
+impl ComponentInterface for FlexColumn {
+    fn flex_grow(&self) -> Option<f64> {
+        self.flex_grow
+    }
 }
 
 #[derive(Default)]

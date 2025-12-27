@@ -1,10 +1,16 @@
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 
-use crate::{Cursor, Error};
+use crate::{ComponentInterface, Cursor, Error};
 
 pub struct Text {
     pub children: TextChildren,
+}
+
+impl ComponentInterface for Text {
+    fn height(&self) -> Option<u16> {
+        Some(1)
+    }
 }
 
 #[derive(Default)]
