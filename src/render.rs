@@ -128,6 +128,7 @@ impl<'a> RenderingContext<'a> {
                 self.staged.lines.push(_d());
                 self.render_text(text, 0)?;
             }
+            Component::FlexColumn(flex_column) => unimplemented!(),
         }
 
         Ok(())

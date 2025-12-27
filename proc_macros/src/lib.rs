@@ -4,7 +4,7 @@ use squalid::{OptionExtDefault, _d};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream, Result},
-    parse_macro_input, Ident, LitFloat, LitInt, Token,
+    parse_macro_input, Ident, LitFloat, LitInt, LitStr, Token,
 };
 
 enum Element {
@@ -36,7 +36,12 @@ impl Parse for Element {
 
 impl ToTokens for Element {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        unimplemented!()
+        match self {
+            Self::FlexColumn(flex_column) => quote! { #flex_column },
+            Self::Text(text) => quote! { #text },
+            Self::Cursor(cursor) => quote! { #cursor },
+        }
+        .to_tokens(tokens)
     }
 }
 
@@ -78,6 +83,25 @@ impl Parse for FlexColumn {
     }
 }
 
+impl ToTokens for FlexColumn {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        quote! {
+            ::oelung::FlexColumnBuilder::default()
+                .child(
+                    TextBuilder::default()
+                        .text_child("Top area")
+                        .cursor_child(Cursor::relative().x(0).y(0))
+                        .build()?
+                        .into(),
+                )
+                .flex_grow(1)
+                .build()?
+                .into()
+        }
+        .to_tokens(tokens)
+    }
+}
+
 struct Cursor {
     pub x: LitInt,
     pub y: LitInt,
@@ -107,6 +131,18 @@ impl Parse for Cursor {
             x: x.expect("Expected `x`"),
             y: y.expect("Expected `y`"),
         })
+    }
+}
+
+struct Text {
+    pub text: LitStr,
+}
+
+impl Parse for Text {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let text: LitStr = input.parse()?;
+
+        Ok(Self { text })
     }
 }
 
