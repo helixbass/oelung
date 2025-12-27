@@ -4,13 +4,20 @@ use squalid::{OptionExtDefault, _d};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream, Result},
-    parse_macro_input, Ident, LitFloat, LitInt, LitStr, Token,
+    parse_macro_input, Expr, Ident, LitFloat, LitInt, LitStr, Token,
 };
+
+mod custom_keywords {
+    syn::custom_keyword!(FlexColumn);
+    syn::custom_keyword!(Text);
+    syn::custom_keyword!(Cursor);
+}
 
 enum Element {
     FlexColumn(FlexColumn),
     Text(Text),
     Cursor(Cursor),
+    Component(Expr),
 }
 
 impl Element {
@@ -25,20 +32,28 @@ impl Element {
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![%]>()?;
-        let name: Ident = input.parse()?;
-
-        Ok(match &*name.to_string() {
-            "FlexColumn" => Self::FlexColumn(input.parse()?),
-            "Text" => Self::Text(input.parse()?),
-            "Cursor" => Self::Cursor({
+        Ok(if input.peek(custom_keywords::FlexColumn) {
+            let name: Ident = input.parse().unwrap();
+            assert_eq!(name.to_string(), "FlexColumn");
+            Self::FlexColumn(input.parse()?)
+        } else if input.peek(custom_keywords::Text) {
+            let name: Ident = input.parse().unwrap();
+            assert_eq!(name.to_string(), "Text");
+            Self::Text(input.parse()?)
+        } else if input.peek(custom_keywords::Cursor) {
+            let name: Ident = input.parse().unwrap();
+            assert_eq!(name.to_string(), "Cursor");
+            Self::Cursor({
                 input.parse::<Token![.]>()?;
                 let relative: Ident = input.parse()?;
                 if relative.to_string() != "Relative" {
                     return Err(input.error(format!("Expected `Relative`")));
                 }
                 input.parse()?
-            }),
-            key => return Err(input.error(format!("Unexpected element `{key}`"))),
+            })
+        } else {
+            let component: Expr = input.parse()?;
+            Self::Component(component)
         })
     }
 }
@@ -51,6 +66,9 @@ impl ToTokens for Element {
             }
             Self::Text(text) => quote! { ::oelung::Component::Text(#text) },
             Self::Cursor(cursor) => quote! { ::oelung::Component::Cursor(#cursor) },
+            Self::Component(component) => {
+                quote! { ::oelung::Component::Component(::std::boxed::Box::new(#component)) }
+            }
         }
         .to_tokens(tokens)
     }
