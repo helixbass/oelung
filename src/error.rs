@@ -6,4 +6,6 @@ pub enum Error {
     TextBuilder(String),
     #[error("crossterm: {0}")]
     Crossterm(String),
+    #[error("Rendered cursor more than once")]
+    RenderedCursorMoreThanOnce,
 }

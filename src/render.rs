@@ -6,13 +6,17 @@ use crossterm::{
     terminal::{Clear, ClearType},
     QueueableCommand,
 };
+use squalid::_d;
 
-use crate::{size, take_over_screen, Component, Error, Size, TakeOverScreenGuard, Text, TextChild};
+use crate::{
+    size, take_over_screen, Component, Cursor, Error, Size, TakeOverScreenGuard, Text, TextChild,
+};
 
 pub struct Renderer {
     pub take_over_screen_guard: TakeOverScreenGuard,
     pub stdout: StdoutLock<'static>,
     pub size: Size,
+    pub has_rendered_cursor_already_in_this_render: bool,
 }
 
 impl Renderer {
@@ -21,10 +25,12 @@ impl Renderer {
             take_over_screen_guard: take_over_screen()?,
             stdout: stdout().lock(),
             size: size()?,
+            has_rendered_cursor_already_in_this_render: _d(),
         })
     }
 
     pub fn render(&mut self, component: Component) -> Result<(), Error> {
+        self.has_rendered_cursor_already_in_this_render = false;
         self.size = size()?;
 
         self.stdout
@@ -74,6 +80,15 @@ impl Renderer {
         self.stdout
             .queue(Print(text))
             .map_err(|_| Error::Crossterm("print failed".into()))?;
+
+        Ok(())
+    }
+
+    fn render_cursor(&mut self, cursor: Cursor) -> Result<(), Error> {
+        if self.has_rendered_cursor_already_in_this_render {
+            return Err(Error::RenderedCursorMoreThanOnce);
+        }
+        self.has_rendered_cursor_already_in_this_render = true;
 
         Ok(())
     }
