@@ -13,6 +13,15 @@ enum Element {
     Cursor(Cursor),
 }
 
+impl Element {
+    pub fn into_cursor(self) -> Cursor {
+        match self {
+            Self::Cursor(cursor) => cursor,
+            _ => panic!("expected cursor"),
+        }
+    }
+}
+
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![%]>()?;
@@ -37,9 +46,9 @@ impl Parse for Element {
 impl ToTokens for Element {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
-            Self::FlexColumn(flex_column) => quote! { #flex_column },
-            Self::Text(text) => quote! { #text },
-            Self::Cursor(cursor) => quote! { #cursor },
+            Self::FlexColumn(flex_column) => quote! { #flex_column.into() },
+            Self::Text(text) => quote! { #text.into() },
+            Self::Cursor(cursor) => quote! { #cursor.into() },
         }
         .to_tokens(tokens)
     }
@@ -103,12 +112,10 @@ impl ToTokens for FlexColumn {
         };
 
         quote! {
-            Into::<::oelung::Component>::into(
-                ::oelung::FlexColumnBuilder::default()
-                    #(#children)*
-                    #flex_grow
-                    .build()?
-            )
+            ::oelung::FlexColumnBuilder::default()
+                #(#children)*
+                #flex_grow
+                .build()?
         }
         .to_tokens(tokens)
     }
@@ -153,7 +160,7 @@ impl ToTokens for Cursor {
         let y = &self.y;
 
         quote! {
-            Into::<::oelung::Component>::into(::oelung::Cursor::relative().x(#x).y(#y))
+            ::oelung::Cursor::relative().x(#x).y(#y)
         }
         .to_tokens(tokens)
     }
@@ -184,7 +191,7 @@ impl Parse for Text {
                         }
                         "cursor" => {
                             assert!(cursor.is_none(), "Already saw 'cursor' key");
-                            cursor = Some(input.parse()?);
+                            cursor = Some(input.parse::<Element>()?.into_cursor());
                         }
                         key => return Err(input.error(format!("Unexpected key `{key}`"))),
                     }
@@ -210,12 +217,10 @@ impl ToTokens for Text {
         };
 
         quote! {
-            Into::<::oelung::Component>::into(
-                ::oelung::TextBuilder::default()
+            ::oelung::TextBuilder::default()
                 .text_child(#text)
                 #cursor
                 .build()?
-            )
         }
         .to_tokens(tokens)
     }
