@@ -9,7 +9,8 @@ use crossterm::{
 use squalid::_d;
 
 use crate::{
-    size, take_over_screen, Component, Cursor, Error, Size, TakeOverScreenGuard, Text, TextChild,
+    size, take_over_screen, Component, Cursor, Error, Offset, Size, TakeOverScreenGuard, Text,
+    TextChild,
 };
 
 pub struct Renderer {
@@ -17,6 +18,7 @@ pub struct Renderer {
     pub stdout: StdoutLock<'static>,
     pub size: Size,
     pub rendered_cursor_position_in_this_render: Option<Position>,
+    pub staged_this_render: Option<Staged>,
 }
 
 impl Renderer {
@@ -26,6 +28,7 @@ impl Renderer {
             stdout: stdout().lock(),
             size: size()?,
             rendered_cursor_position_in_this_render: _d(),
+            staged_this_render: _d(),
         })
     }
 
@@ -44,8 +47,35 @@ impl Renderer {
             .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
         match component {
-            Component::Text(text) => self.render_text(text)?,
+            Component::Text(text) => {
+                let mut rendering_context = RenderingContext {
+                    grid: Grid {
+                        left: 0,
+                        top: 0,
+                        width: self.size.width,
+                        height: self.size.height,
+                    },
+                    renderer: self,
+                    staged: _d(),
+                    rendered_cursor_position: _d(),
+                };
+                rendering_context.render_text(text)?;
+                let RenderingContext {
+                    staged,
+                    rendered_cursor_position,
+                    ..
+                } = rendering_context;
+                self.staged_this_render = Some(staged);
+                if let Some(rendered_cursor_position) = rendered_cursor_position {
+                    if self.rendered_cursor_position_in_this_render.is_some() {
+                        return Err(Error::RenderedCursorMoreThanOnce);
+                    }
+                    self.rendered_cursor_position_in_this_render = Some(rendered_cursor_position);
+                }
+            }
         }
+
+        self.render_staged();
 
         if let Some(cursor_position) = self.rendered_cursor_position_in_this_render {
             self.stdout
@@ -63,7 +93,33 @@ impl Renderer {
         Ok(())
     }
 
-    fn render_text(&mut self, text: Text) -> Result<(), Error> {
+    fn render_staged(&mut self) -> Result<(), Error> {
+        let staged = self.staged_this_render.as_ref().unwrap();
+        for (row_index, row) in staged.lines.iter().enumerate() {
+            self.stdout
+                .queue(Print(row))
+                .map_err(|_| Error::Crossterm("print failed".into()))?;
+
+            if row_index < staged.lines.len() - 1 {
+                self.stdout
+                    .queue(Print("\r\n"))
+                    .map_err(|_| Error::Crossterm("print failed".into()))?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub struct RenderingContext<'a> {
+    pub renderer: &'a mut Renderer,
+    pub grid: Grid,
+    pub staged: Staged,
+    pub rendered_cursor_position: Option<Position>,
+}
+
+impl<'a> RenderingContext<'a> {
+    pub fn render_text(&mut self, text: Text) -> Result<(), Error> {
         for child in text.children {
             match child {
                 TextChild::Text(text) => self.print_text(&text)?,
@@ -76,6 +132,7 @@ impl Renderer {
     }
 
     fn print_text(&mut self, text: &str) -> Result<(), Error> {
+        unimplemented!();
         self.stdout
             .queue(Print(text))
             .map_err(|_| Error::Crossterm("print failed".into()))?;
@@ -84,10 +141,12 @@ impl Renderer {
     }
 
     fn render_cursor(&mut self, cursor: Cursor) -> Result<(), Error> {
-        if self.rendered_cursor_position_in_this_render.is_some() {
+        if self.rendered_cursor_position.is_some() {
             return Err(Error::RenderedCursorMoreThanOnce);
         }
-        self.rendered_cursor_position_in_this_render = Some(unimplemented!());
+        self.rendered_cursor_position = Some(match cursor {
+            Cursor::Relative(Offset { x, y }) => Position { row: y, column: x },
+        });
 
         Ok(())
     }
@@ -97,4 +156,17 @@ impl Renderer {
 pub struct Position {
     pub row: u16,
     pub column: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Grid {
+    pub left: u16,
+    pub top: u16,
+    pub height: u16,
+    pub width: u16,
+}
+
+#[derive(Default)]
+pub struct Staged {
+    pub lines: Vec<String>,
 }
