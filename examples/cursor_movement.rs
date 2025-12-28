@@ -91,9 +91,9 @@ fn render_screen(
     lines: &[String],
     last_rendered_text_area_grid: &Cell<Option<Grid>>,
 ) -> Result<(), anyhow::Error> {
-    let current_percent = cursor_position
-        .row
-        .div_ceil(u16::try_from(lines.len()).unwrap());
+    let current_percent = ((f64::from(cursor_position.row)
+        / f64::from(u32::try_from(lines.len()).unwrap()))
+        * 100.0) as u16;
 
     renderer.render(soft! {
       %FlexColumn
