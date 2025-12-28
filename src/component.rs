@@ -1,7 +1,7 @@
 use crate::{FlexColumn, Grid, Text};
 
 pub enum Component<'a> {
-    Text(Text),
+    Text(Text<'a>),
     FlexColumn(FlexColumn<'a>),
     Component(Box<dyn ComponentInterface + 'a>),
 }
@@ -22,8 +22,8 @@ impl<'a> Component<'a> {
     }
 }
 
-impl From<Text> for Component<'_> {
-    fn from(value: Text) -> Self {
+impl<'a> From<Text<'a>> for Component<'a> {
+    fn from(value: Text<'a>) -> Self {
         Self::Text(value)
     }
 }

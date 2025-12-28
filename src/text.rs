@@ -7,30 +7,30 @@ use smol_str::{SmolStr, ToSmolStr};
 
 use crate::{Component, ComponentInterface, Cursor, Error, Grid, Style, StyleBuilder};
 
-pub struct Text {
-    pub children: TextChildren,
+pub struct Text<'a> {
+    pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
     pub style: Option<Style>,
 }
 
-impl ComponentInterface for Text {
+impl<'a> ComponentInterface for Text<'a> {
     fn height(&self) -> Option<u16> {
         Some(1)
     }
 
-    fn render<'a>(&self, _grid: Grid) -> Result<Component<'a>, anyhow::Error> {
+    fn render<'b>(&self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
         unreachable!()
     }
 }
 
 #[derive(Default)]
-pub struct TextBuilder {
-    pub children: TextChildren,
+pub struct TextBuilder<'a> {
+    pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
     pub color: Option<Color>,
 }
 
-impl TextBuilder {
+impl<'a> TextBuilder<'a> {
     pub fn text_child(mut self, child: impl Display) -> Self {
         self.children.push(child.to_smolstr().into());
         self
@@ -41,8 +41,13 @@ impl TextBuilder {
         self
     }
 
-    pub fn nested_child(mut self, child: Text) -> Self {
+    pub fn nested_child(mut self, child: Text<'a>) -> Self {
         self.children.push(child.into());
+        self
+    }
+
+    pub fn nested_child_component(mut self, child: Box<dyn ComponentInterface + 'a>) -> Self {
+        self.children.push(TextChild::NestedComponent(child));
         self
     }
 
@@ -51,7 +56,7 @@ impl TextBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Text, Error> {
+    pub fn build(self) -> Result<Text<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::TextBuilder("empty children".into()));
         }
@@ -69,20 +74,21 @@ impl TextBuilder {
     }
 }
 
-pub type TextChildren = SmallVec<[TextChild; 10]>;
+pub type TextChildren<'a> = SmallVec<[TextChild<'a>; 10]>;
 
-pub enum TextChild {
-    Nested(Box<Text>),
+pub enum TextChild<'a> {
+    Nested(Box<Text<'a>>),
+    NestedComponent(Box<dyn ComponentInterface + 'a>),
     Text(SmolStr),
 }
 
-impl From<Text> for TextChild {
-    fn from(value: Text) -> Self {
+impl<'a> From<Text<'a>> for TextChild<'a> {
+    fn from(value: Text<'a>) -> Self {
         Self::Nested(Box::new(value))
     }
 }
 
-impl From<SmolStr> for TextChild {
+impl<'a> From<SmolStr> for TextChild<'a> {
     fn from(value: SmolStr) -> Self {
         Self::Text(value)
     }
