@@ -33,7 +33,7 @@ impl Renderer {
         })
     }
 
-    pub fn render(&mut self, mut component: Component) -> Result<(), Error> {
+    pub fn render<'a>(&mut self, component: Component<'a>) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
         self.size = size()?;
 
@@ -53,7 +53,8 @@ impl Renderer {
             width: self.size.width,
             height: self.size.height,
         };
-        let mut outer_components: Vec<Component> = _d();
+        let mut component = component;
+        let mut outer_components: Vec<Component<'a>> = _d();
         while matches!(component, Component::Component(_)) {
             outer_components.push(component);
             component = outer_components[outer_components.len() - 1]

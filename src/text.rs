@@ -14,7 +14,7 @@ impl ComponentInterface for Text {
         Some(1)
     }
 
-    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
+    fn render<'a>(&self, _grid: Grid) -> Result<Component<'a>, anyhow::Error> {
         unreachable!()
     }
 }
