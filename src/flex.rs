@@ -20,6 +20,7 @@ impl<'a> ComponentInterface for FlexColumn<'a> {
 pub struct FlexColumnBuilder<'a> {
     pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
+    pub cursor: Option<Cursor>,
 }
 
 impl<'a> FlexColumnBuilder<'a> {
@@ -33,6 +34,11 @@ impl<'a> FlexColumnBuilder<'a> {
         self
     }
 
+    pub fn cursor(mut self, cursor: Cursor) -> Self {
+        self.cursor = Some(cursor);
+        self
+    }
+
     pub fn build(self) -> Result<FlexColumn<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::FlexColumnBuilder("empty children".into()));
@@ -40,6 +46,7 @@ impl<'a> FlexColumnBuilder<'a> {
         Ok(FlexColumn {
             children: self.children,
             flex_grow: self.flex_grow,
+            cursor: self.cursor,
         })
     }
 }

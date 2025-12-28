@@ -203,8 +203,11 @@ impl RenderingContext {
             match child {
                 TextChild::Text(text) => self.print_text(&text, line_num)?,
                 TextChild::Nested(text) => self.render_text(*text, line_num)?,
-                TextChild::Cursor(cursor) => self.render_cursor(cursor)?,
             }
+        }
+
+        if let Some(cursor) = text.cursor {
+            self.render_cursor(cursor)?;
         }
 
         Ok(())
