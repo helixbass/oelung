@@ -6,6 +6,15 @@ pub enum Component {
     Component(Box<dyn ComponentInterface>),
 }
 
+impl Component {
+    pub fn into_component(self) -> Box<dyn ComponentInterface> {
+        match self {
+            Self::Component(component) => component,
+            _ => panic!("expected component"),
+        }
+    }
+}
+
 impl From<Text> for Component {
     fn from(value: Text) -> Self {
         Self::Text(value)

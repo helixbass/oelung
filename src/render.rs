@@ -34,7 +34,10 @@ impl Renderer {
     }
 
     pub fn render(&mut self, component_or_fragment: ComponentOrFragment) -> Result<(), Error> {
-        let component = component_or_fragment.into_component();
+        let mut component = match component_or_fragment {
+            ComponentOrFragment::Component(component) => component,
+            _ => return Err(Error::TopLevelFragment),
+        };
         self.rendered_cursor_position_in_this_render = _d();
         self.size = size()?;
 
@@ -54,6 +57,12 @@ impl Renderer {
             width: self.size.width,
             height: self.size.height,
         };
+        while matches!(component, Component::Component(_)) {
+            component = match component.into_component().render(grid)? {
+                ComponentOrFragment::Component(component) => component,
+                _ => return Err(Error::TopLevelFragment),
+            };
+        }
         let mut rendering_context = RenderingContext::new(grid);
         rendering_context.render(component)?;
         let RenderingContext {
@@ -164,6 +173,7 @@ impl RenderingContext {
                         rendered_cursor_position,
                         ..
                     } = rendering_context;
+                    eprintln!("staged: {:#?}, height: {height:#?}", staged.lines);
                     assert!(staged.lines.len() <= usize::from(height));
                     let num_less_rendered_vs_height = usize::from(height) - staged.lines.len();
                     self.staged.lines.extend(staged.lines);
