@@ -99,7 +99,7 @@ fn render_screen(
       %FlexColumn
         children => [
           %TextArea::new(lines, cursor_position, last_rendered_text_area_grid)
-          %StatusBar::new(current_percent)
+          %StatusBar::new(current_percent, cursor_position.column)
           %Text "Hit q to quit. Use j/k/h/l to move around the text area."
         ]
     })?;
@@ -152,11 +152,15 @@ impl<'a> ComponentInterface for TextArea<'a> {
 
 struct StatusBar {
     pub current_percent: u16,
+    pub cursor_column: u16,
 }
 
 impl StatusBar {
-    pub fn new(current_percent: u16) -> Self {
-        Self { current_percent }
+    pub fn new(current_percent: u16, cursor_column: u16) -> Self {
+        Self {
+            current_percent,
+            cursor_column,
+        }
     }
 }
 
@@ -168,7 +172,8 @@ impl ComponentInterface for StatusBar {
             children => [
               %Text "some_file.rs ["
               %Text self.current_percent
-              %Text "%] 999 lines |1"
+              %Text "%] 999 lines |"
+              %Text self.cursor_column
             ]
         })
     }
