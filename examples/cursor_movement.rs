@@ -40,7 +40,7 @@ fn render_screen(
     renderer.render(soft! {
       %FlexColumn
         children => [
-          %TextArea::new(lines)
+          %TextArea::new(lines, cursor_position)
           %StatusBar::new(current_percent)
           %Text "Hit q to quit. Use j/k/h/l to move around the text area."
         ]
@@ -51,11 +51,15 @@ fn render_screen(
 
 struct TextArea<'a> {
     pub lines: &'a [String],
+    pub cursor_position: Position,
 }
 
 impl<'a> TextArea<'a> {
-    pub fn new(lines: &'a [String]) -> Self {
-        Self { lines }
+    pub fn new(lines: &'a [String], cursor_position: Position) -> Self {
+        Self {
+            lines,
+            cursor_position,
+        }
     }
 }
 
@@ -70,8 +74,8 @@ impl<'a> ComponentInterface for TextArea<'a> {
             ]
             flex_grow => 1
             cursor => %Cursor.Relative
-              x => cursor_position.x
-              y => cursor_position.y
+              x => self.cursor_position.x
+              y => self.cursor_position.y
         })
     }
 

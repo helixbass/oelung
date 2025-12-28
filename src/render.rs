@@ -191,6 +191,9 @@ impl RenderingContext {
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
                 }
+                if let Some(cursor) = flex_column.cursor {
+                    self.render_cursor(cursor)?;
+                }
             }
             Component::Component(_) => unreachable!(),
         }
