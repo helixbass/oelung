@@ -19,7 +19,7 @@ fn main() -> Result<(), anyhow::Error> {
         .row
         .div_ceil(u16::try_from(lines.len()).unwrap());
 
-    render_screen(&mut renderer, current_percent, cursor_position)?;
+    render_screen(&mut renderer, current_percent, cursor_position, &lines)?;
 
     loop {
         match event::read()? {
@@ -60,7 +60,7 @@ impl<'a> TextArea<'a> {
 }
 
 impl<'a> ComponentInterface for TextArea<'a> {
-    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
+    fn render<'b>(&self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
         let mut flex_column = FlexColumnBuilder::default();
         Ok(soft! {
           %FlexColumn
@@ -68,8 +68,10 @@ impl<'a> ComponentInterface for TextArea<'a> {
               %Text
                 text => "Top area"
                 cursor => %Cursor.Relative
-                  x => cursor_position.x
-                  y => cursor_position.y
+                  // x => cursor_position.x
+                  // y => cursor_position.y
+                  x => 0
+                  y => 0
             ]
             flex_grow => 1
         })
