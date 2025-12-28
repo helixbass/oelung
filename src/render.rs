@@ -3,14 +3,14 @@ use std::iter;
 
 use crossterm::{
     cursor,
-    style::Print,
+    style::{Color, Print, SetForegroundColor},
     terminal::{Clear, ClearType},
     QueueableCommand,
 };
 use squalid::_d;
 
 use crate::{
-    size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size,
+    size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size, Style,
     TakeOverScreenGuard, Text, TextChild,
 };
 
@@ -47,6 +47,7 @@ impl Renderer {
             .queue(cursor::MoveTo(0, 0))
             .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
+        let style = Style::default();
         let grid = Grid {
             left: 0,
             top: 0,
@@ -61,7 +62,7 @@ impl Renderer {
                 .as_component()
                 .render(grid)?;
         }
-        let mut rendering_context = RenderingContext::new(grid);
+        let mut rendering_context = RenderingContext::new(grid, style);
         rendering_context.render(component)?;
         let RenderingContext {
             staged,
@@ -97,9 +98,23 @@ impl Renderer {
     fn render_staged(&mut self) -> Result<(), Error> {
         let staged = self.staged_this_render.as_ref().unwrap();
         for (row_index, row) in staged.lines.iter().enumerate() {
-            self.stdout
-                .queue(Print(row))
-                .map_err(|_| Error::Crossterm("print failed".into()))?;
+            for (styled_chunk, style) in row {
+                match style.color {
+                    Some(color) => {
+                        self.stdout
+                            .queue(SetForegroundColor(color))
+                            .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
+                    }
+                    None => {
+                        self.stdout
+                            .queue(SetForegroundColor(Color::Reset))
+                            .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
+                    }
+                }
+                self.stdout
+                    .queue(Print(styled_chunk))
+                    .map_err(|_| Error::Crossterm("print failed".into()))?;
+            }
 
             if row_index < staged.lines.len() - 1 {
                 self.stdout
@@ -117,15 +132,17 @@ pub struct RenderingContext {
     pub staged: Staged,
     pub rendered_cursor_position: Option<Position>,
     // pub current_line_number: Option<usize>,
+    pub style: Style,
 }
 
 impl RenderingContext {
-    pub fn new(grid: Grid) -> Self {
+    pub fn new(grid: Grid, style: Style) -> Self {
         Self {
             grid,
             staged: _d(),
             rendered_cursor_position: _d(),
             // current_line_number: _d(),
+            style,
         }
     }
 
@@ -133,7 +150,7 @@ impl RenderingContext {
         match component {
             Component::Text(text) => {
                 self.staged.lines.push(_d());
-                self.render_text(text, 0)?;
+                self.render_text(text, 0, self.style)?;
             }
             Component::FlexColumn(flex_column) => {
                 assert!(
@@ -168,7 +185,7 @@ impl RenderingContext {
                     while matches!(child, Component::Component(_)) {
                         child = child.into_component().render(grid)?;
                     }
-                    let mut rendering_context = RenderingContext::new(grid);
+                    let mut rendering_context = RenderingContext::new(grid, self.style);
                     rendering_context.render(child)?;
                     let RenderingContext {
                         staged,
@@ -181,7 +198,7 @@ impl RenderingContext {
                     if num_less_rendered_vs_height > 0 {
                         self.staged
                             .lines
-                            .extend(iter::repeat(String::new()).take(num_less_rendered_vs_height));
+                            .extend(iter::repeat(vec![]).take(num_less_rendered_vs_height));
                     }
                     num_rows_rendered += height;
                     if let Some(rendered_cursor_position) = rendered_cursor_position {
@@ -201,11 +218,22 @@ impl RenderingContext {
         Ok(())
     }
 
-    pub fn render_text(&mut self, text: Text, line_num: usize) -> Result<(), Error> {
+    pub fn render_text(
+        &mut self,
+        text: Text,
+        line_num: usize,
+        mut style: Style,
+    ) -> Result<(), Error> {
+        if let Some(text_style) = text.style {
+            if let Some(color) = text_style.color {
+                style.color = Some(color);
+            }
+        }
+
         for child in text.children {
             match child {
-                TextChild::Text(text) => self.print_text(&text, line_num)?,
-                TextChild::Nested(text) => self.render_text(*text, line_num)?,
+                TextChild::Text(text) => self.print_text(&text, line_num, style)?,
+                TextChild::Nested(text) => self.render_text(*text, line_num, style)?,
             }
         }
 
@@ -216,8 +244,8 @@ impl RenderingContext {
         Ok(())
     }
 
-    fn print_text(&mut self, text: &str, line_num: usize) -> Result<(), Error> {
-        self.staged.lines[line_num].push_str(text);
+    fn print_text(&mut self, text: &str, line_num: usize, style: Style) -> Result<(), Error> {
+        self.staged.lines[line_num].push((text.to_owned(), style));
 
         Ok(())
     }
@@ -250,5 +278,5 @@ pub struct Grid {
 
 #[derive(Default)]
 pub struct Staged {
-    pub lines: Vec<String>,
+    pub lines: Vec<Vec<(String, Style)>>,
 }
