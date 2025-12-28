@@ -76,6 +76,10 @@ impl<'a> ComponentInterface for TextArea<'a> {
             flex_grow => 1
         })
     }
+
+    fn flex_grow(&self) -> Option<f64> {
+        Some(1.0)
+    }
 }
 
 struct StatusBar {
