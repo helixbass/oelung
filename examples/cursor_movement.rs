@@ -1,6 +1,6 @@
 use crossterm::event::{self, Event, KeyCode};
 
-use oelung::{soft, Component, ComponentInterface, FlexColumnBuilder, Grid, Renderer};
+use oelung::{soft, Component, ComponentInterface, Cursor, FlexColumnBuilder, Grid, Renderer};
 
 fn main() -> Result<(), anyhow::Error> {
     let mut renderer = Renderer::try_new()?;
@@ -66,17 +66,18 @@ impl<'a> TextArea<'a> {
 impl<'a> ComponentInterface for TextArea<'a> {
     fn render<'b>(&self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
         let mut flex_column = FlexColumnBuilder::default();
-        Ok(soft! {
-          %FlexColumn
-            children => [
-              %Text
-                text => "Top area"
-            ]
-            flex_grow => 1
-            cursor => %Cursor.Relative
-              x => self.cursor_position.column
-              y => self.cursor_position.row
-        })
+        for line in self.lines {
+            flex_column = flex_column.child(soft! {
+                %Text line
+            });
+        }
+        flex_column = flex_column.flex_grow(1);
+        flex_column = flex_column.cursor(
+            Cursor::relative()
+                .x(self.cursor_position.column)
+                .y(self.cursor_position.row),
+        );
+        Ok(flex_column.build()?.into())
     }
 
     fn flex_grow(&self) -> Option<f64> {
