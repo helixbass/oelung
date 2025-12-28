@@ -1,13 +1,20 @@
 use crate::{FlexColumn, Grid, Text};
 
-pub enum Component {
+pub enum Component<'a> {
     Text(Text),
-    FlexColumn(FlexColumn),
-    Component(Box<dyn ComponentInterface>),
+    FlexColumn(FlexColumn<'a>),
+    Component(Box<dyn ComponentInterface + 'a>),
 }
 
-impl Component {
-    pub fn into_component(self) -> Box<dyn ComponentInterface> {
+impl<'a> Component<'a> {
+    pub fn into_component(self) -> Box<dyn ComponentInterface + 'a> {
+        match self {
+            Self::Component(component) => component,
+            _ => panic!("expected component"),
+        }
+    }
+
+    pub fn as_component(&self) -> &Box<dyn ComponentInterface + 'a> {
         match self {
             Self::Component(component) => component,
             _ => panic!("expected component"),
@@ -15,14 +22,14 @@ impl Component {
     }
 }
 
-impl From<Text> for Component {
+impl From<Text> for Component<'_> {
     fn from(value: Text) -> Self {
         Self::Text(value)
     }
 }
 
-impl From<FlexColumn> for Component {
-    fn from(value: FlexColumn) -> Self {
+impl<'a> From<FlexColumn<'a>> for Component<'a> {
+    fn from(value: FlexColumn<'a>) -> Self {
         Self::FlexColumn(value)
     }
 }
@@ -36,10 +43,10 @@ pub trait ComponentInterface {
         None
     }
 
-    fn render(&self, grid: Grid) -> Result<Component, anyhow::Error>;
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error>;
 }
 
-impl ComponentInterface for Component {
+impl ComponentInterface for Component<'_> {
     fn flex_grow(&self) -> Option<f64> {
         match self {
             Self::Text(text) => text.flex_grow(),

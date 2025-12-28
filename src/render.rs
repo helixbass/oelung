@@ -53,8 +53,12 @@ impl Renderer {
             width: self.size.width,
             height: self.size.height,
         };
+        let mut outer_components: Vec<Component> = _d();
         while matches!(component, Component::Component(_)) {
-            component = component.into_component().render(grid)?;
+            outer_components.push(component);
+            component = outer_components[outer_components.len() - 1]
+                .as_component()
+                .render(grid)?;
         }
         let mut rendering_context = RenderingContext::new(grid);
         rendering_context.render(component)?;

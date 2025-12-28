@@ -1,11 +1,11 @@
 use crate::{Component, ComponentInterface, Error, Grid};
 
-pub struct FlexColumn {
-    pub children: Vec<Component>,
+pub struct FlexColumn<'a> {
+    pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
 }
 
-impl ComponentInterface for FlexColumn {
+impl<'a> ComponentInterface for FlexColumn<'a> {
     fn flex_grow(&self) -> Option<f64> {
         self.flex_grow
     }
@@ -16,13 +16,13 @@ impl ComponentInterface for FlexColumn {
 }
 
 #[derive(Default)]
-pub struct FlexColumnBuilder {
-    pub children: Vec<Component>,
+pub struct FlexColumnBuilder<'a> {
+    pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
 }
 
-impl FlexColumnBuilder {
-    pub fn child(mut self, child: impl Into<Component>) -> Self {
+impl<'a> FlexColumnBuilder<'a> {
+    pub fn child(mut self, child: impl Into<Component<'a>>) -> Self {
         self.children.push(child.into());
         self
     }
@@ -32,7 +32,7 @@ impl FlexColumnBuilder {
         self
     }
 
-    pub fn build(self) -> Result<FlexColumn, Error> {
+    pub fn build(self) -> Result<FlexColumn<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::FlexColumnBuilder("empty children".into()));
         }
