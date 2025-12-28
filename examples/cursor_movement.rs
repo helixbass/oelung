@@ -164,6 +164,7 @@ impl ComponentInterface for StatusBar {
     fn render<'a>(&self, _grid: Grid) -> Result<Component<'a>, anyhow::Error> {
         Ok(soft! {
           %Text
+            color => Ansi(182)
             children => [
               %Text "some_file.rs ["
               %Text self.current_percent

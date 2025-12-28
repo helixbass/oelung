@@ -1,13 +1,16 @@
 use std::fmt::Display;
 
+use crossterm::style::Color;
+
 use smallvec::SmallVec;
 use smol_str::{SmolStr, ToSmolStr};
 
-use crate::{Component, ComponentInterface, Cursor, Error, Grid};
+use crate::{Component, ComponentInterface, Cursor, Error, Grid, Style, StyleBuilder};
 
 pub struct Text {
     pub children: TextChildren,
     pub cursor: Option<Cursor>,
+    pub style: Option<Style>,
 }
 
 impl ComponentInterface for Text {
@@ -24,6 +27,7 @@ impl ComponentInterface for Text {
 pub struct TextBuilder {
     pub children: TextChildren,
     pub cursor: Option<Cursor>,
+    pub color: Option<Color>,
 }
 
 impl TextBuilder {
@@ -42,6 +46,11 @@ impl TextBuilder {
         self
     }
 
+    pub fn color(mut self, color: Color) -> Self {
+        self.color = Some(color);
+        self
+    }
+
     pub fn build(self) -> Result<Text, Error> {
         if self.children.is_empty() {
             return Err(Error::TextBuilder("empty children".into()));
@@ -49,6 +58,13 @@ impl TextBuilder {
         Ok(Text {
             children: self.children,
             cursor: self.cursor,
+            style: {
+                let mut style = StyleBuilder::default();
+                if let Some(color) = self.color {
+                    style.color(color);
+                }
+                Some(style.build().unwrap())
+            },
         })
     }
 }
