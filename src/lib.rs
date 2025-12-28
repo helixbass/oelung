@@ -1,5 +1,6 @@
 pub use proc_macros::soft;
 
+pub use anyhow;
 pub use crossterm;
 
 mod component;
