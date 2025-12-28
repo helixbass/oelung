@@ -1,5 +1,7 @@
+use std::fmt::Display;
+
 use smallvec::SmallVec;
-use smol_str::SmolStr;
+use smol_str::{SmolStr, ToSmolStr};
 
 use crate::{ComponentInterface, ComponentOrFragment, Cursor, Error, Grid};
 
@@ -24,9 +26,9 @@ pub struct TextBuilder {
 }
 
 impl TextBuilder {
-    pub fn text_child(mut self, child: impl Into<SmolStr>) -> Self {
+    pub fn text_child(mut self, child: impl Display) -> Self {
         self.has_seen_non_cursor_child = true;
-        self.children.push(child.into().into());
+        self.children.push(child.to_smolstr().into());
         self
     }
 
