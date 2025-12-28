@@ -55,12 +55,14 @@ impl ToTokens for Element {
 struct FlexColumn {
     pub children: Vec<Element>,
     pub flex_grow: Option<LitFloatOrInt>,
+    pub cursor: Option<Cursor>,
 }
 
 impl Parse for FlexColumn {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut children: Option<Vec<Element>> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
+        let mut cursor: Option<Cursor> = _d();
 
         while input.peek(Ident) {
             let key = input.parse::<Ident>().unwrap().to_string();
@@ -80,6 +82,10 @@ impl Parse for FlexColumn {
                     assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
                     flex_grow = Some(input.parse()?);
                 }
+                "cursor" => {
+                    assert!(cursor.is_none(), "Already saw 'cursor' key");
+                    cursor = Some(input.parse()?);
+                }
                 key => return Err(input.error(format!("Unexpected key `{key}`"))),
             }
         }
@@ -87,6 +93,7 @@ impl Parse for FlexColumn {
         Ok(Self {
             children: children.expect("Expected `children`"),
             flex_grow,
+            cursor,
         })
     }
 }
@@ -108,11 +115,18 @@ impl ToTokens for FlexColumn {
                 .flex_grow(#flex_grow)
             },
         };
+        let cursor = match self.cursor.as_ref() {
+            None => quote! {},
+            Some(cursor) => quote! {
+                .cursor(#cursor)
+            },
+        };
 
         quote! {
             ::oelung::FlexColumnBuilder::default()
                 #(#children)*
                 #flex_grow
+                #cursor
                 .build()?
         }
         .to_tokens(tokens)
