@@ -15,18 +15,26 @@ fn main() -> Result<(), anyhow::Error> {
 
     let mut cursor_position = Position { row: 0, column: 0 };
 
-    let mut current_percent = cursor_position
-        .row
-        .div_ceil(u16::try_from(lines.len()).unwrap());
-
-    render_screen(&mut renderer, current_percent, cursor_position, &lines)?;
+    render_screen(&mut renderer, cursor_position, &lines)?;
 
     loop {
         match event::read()? {
             Event::Key(key_event) if key_event.code == KeyCode::Char('q') => break,
             Event::Key(key_event) if key_event.code == KeyCode::Char('j') => {
                 cursor_position.row += 1;
-                render_screen(&mut renderer, current_percent, cursor_position, &lines)?;
+                render_screen(&mut renderer, cursor_position, &lines)?;
+            }
+            Event::Key(key_event) if key_event.code == KeyCode::Char('k') => {
+                cursor_position.row -= 1;
+                render_screen(&mut renderer, cursor_position, &lines)?;
+            }
+            Event::Key(key_event) if key_event.code == KeyCode::Char('l') => {
+                cursor_position.column += 1;
+                render_screen(&mut renderer, cursor_position, &lines)?;
+            }
+            Event::Key(key_event) if key_event.code == KeyCode::Char('h') => {
+                cursor_position.column -= 1;
+                render_screen(&mut renderer, cursor_position, &lines)?;
             }
             _ => {}
         }
@@ -37,10 +45,13 @@ fn main() -> Result<(), anyhow::Error> {
 
 fn render_screen(
     renderer: &mut Renderer,
-    current_percent: u16,
     cursor_position: Position,
     lines: &[String],
 ) -> Result<(), anyhow::Error> {
+    let current_percent = cursor_position
+        .row
+        .div_ceil(u16::try_from(lines.len()).unwrap());
+
     renderer.render(soft! {
       %FlexColumn
         children => [
