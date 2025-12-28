@@ -1,6 +1,9 @@
+use std::cell::Cell;
+
 use crossterm::event::{self, Event, KeyCode};
 
 use oelung::{soft, Component, ComponentInterface, Cursor, FlexColumnBuilder, Grid, Renderer};
+use squalid::_d;
 
 fn main() -> Result<(), anyhow::Error> {
     let mut renderer = Renderer::try_new()?;
@@ -15,26 +18,65 @@ fn main() -> Result<(), anyhow::Error> {
 
     let mut cursor_position = Position { row: 0, column: 0 };
 
-    render_screen(&mut renderer, cursor_position, &lines)?;
+    let last_rendered_text_area_grid: Cell<Option<Grid>> = _d();
+
+    render_screen(
+        &mut renderer,
+        cursor_position,
+        &lines,
+        &last_rendered_text_area_grid,
+    )?;
 
     loop {
         match event::read()? {
             Event::Key(key_event) if key_event.code == KeyCode::Char('q') => break,
             Event::Key(key_event) if key_event.code == KeyCode::Char('j') => {
+                if cursor_position.row >= u16::try_from(lines.len()).unwrap() - 1 {
+                    continue;
+                }
                 cursor_position.row += 1;
-                render_screen(&mut renderer, cursor_position, &lines)?;
+                render_screen(
+                    &mut renderer,
+                    cursor_position,
+                    &lines,
+                    &last_rendered_text_area_grid,
+                )?;
             }
             Event::Key(key_event) if key_event.code == KeyCode::Char('k') => {
+                if cursor_position.row == 0 {
+                    continue;
+                }
                 cursor_position.row -= 1;
-                render_screen(&mut renderer, cursor_position, &lines)?;
+                render_screen(
+                    &mut renderer,
+                    cursor_position,
+                    &lines,
+                    &last_rendered_text_area_grid,
+                )?;
             }
             Event::Key(key_event) if key_event.code == KeyCode::Char('l') => {
+                if cursor_position.column == last_rendered_text_area_grid.get().unwrap().width - 1 {
+                    continue;
+                }
                 cursor_position.column += 1;
-                render_screen(&mut renderer, cursor_position, &lines)?;
+                render_screen(
+                    &mut renderer,
+                    cursor_position,
+                    &lines,
+                    &last_rendered_text_area_grid,
+                )?;
             }
             Event::Key(key_event) if key_event.code == KeyCode::Char('h') => {
+                if cursor_position.column == 0 {
+                    continue;
+                }
                 cursor_position.column -= 1;
-                render_screen(&mut renderer, cursor_position, &lines)?;
+                render_screen(
+                    &mut renderer,
+                    cursor_position,
+                    &lines,
+                    &last_rendered_text_area_grid,
+                )?;
             }
             _ => {}
         }
@@ -47,6 +89,7 @@ fn render_screen(
     renderer: &mut Renderer,
     cursor_position: Position,
     lines: &[String],
+    last_rendered_text_area_grid: &Cell<Option<Grid>>,
 ) -> Result<(), anyhow::Error> {
     let current_percent = cursor_position
         .row
@@ -55,7 +98,7 @@ fn render_screen(
     renderer.render(soft! {
       %FlexColumn
         children => [
-          %TextArea::new(lines, cursor_position)
+          %TextArea::new(lines, cursor_position, last_rendered_text_area_grid)
           %StatusBar::new(current_percent)
           %Text "Hit q to quit. Use j/k/h/l to move around the text area."
         ]
@@ -67,19 +110,26 @@ fn render_screen(
 struct TextArea<'a> {
     pub lines: &'a [String],
     pub cursor_position: Position,
+    last_rendered_text_area_grid: &'a Cell<Option<Grid>>,
 }
 
 impl<'a> TextArea<'a> {
-    pub fn new(lines: &'a [String], cursor_position: Position) -> Self {
+    pub fn new(
+        lines: &'a [String],
+        cursor_position: Position,
+        last_rendered_text_area_grid: &'a Cell<Option<Grid>>,
+    ) -> Self {
         Self {
             lines,
             cursor_position,
+            last_rendered_text_area_grid,
         }
     }
 }
 
 impl<'a> ComponentInterface for TextArea<'a> {
-    fn render<'b>(&self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
+    fn render<'b>(&self, grid: Grid) -> Result<Component<'b>, anyhow::Error> {
+        self.last_rendered_text_area_grid.set(Some(grid));
         let mut flex_column = FlexColumnBuilder::default();
         for line in self.lines {
             flex_column = flex_column.child(soft! {
