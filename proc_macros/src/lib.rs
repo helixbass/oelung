@@ -4,7 +4,7 @@ use squalid::{OptionExtDefault, _d};
 use syn::{
     bracketed,
     parse::{Parse, ParseStream, Result},
-    parse_macro_input, Expr, Ident, LitFloat, LitInt, LitStr, Token,
+    parse_macro_input, Expr, Ident, LessThanBinaryExpr, LitFloat, LitInt, LitStr, Token,
 };
 
 mod custom_keywords {
@@ -52,7 +52,7 @@ impl Parse for Element {
                 input.parse()?
             })
         } else {
-            let component: Expr = input.parse()?;
+            let component = input.parse::<LessThanBinaryExpr>()?.expr;
             Self::Component(component)
         })
     }
