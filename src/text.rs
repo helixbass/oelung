@@ -7,6 +7,7 @@ use crate::{Component, ComponentInterface, Cursor, Error, Grid};
 
 pub struct Text {
     pub children: TextChildren,
+    pub cursor: Option<Cursor>,
 }
 
 impl ComponentInterface for Text {
@@ -22,18 +23,17 @@ impl ComponentInterface for Text {
 #[derive(Default)]
 pub struct TextBuilder {
     pub children: TextChildren,
-    pub has_seen_non_cursor_child: bool,
+    pub cursor: Option<Cursor>,
 }
 
 impl TextBuilder {
     pub fn text_child(mut self, child: impl Display) -> Self {
-        self.has_seen_non_cursor_child = true;
         self.children.push(child.to_smolstr().into());
         self
     }
 
-    pub fn cursor_child(mut self, child: Cursor) -> Self {
-        self.children.push(child.into());
+    pub fn cursor(mut self, cursor: Cursor) -> Self {
+        self.cursor = Some(cursor);
         self
     }
 
@@ -43,11 +43,12 @@ impl TextBuilder {
     }
 
     pub fn build(self) -> Result<Text, Error> {
-        if !self.has_seen_non_cursor_child {
+        if self.children.is_empty() {
             return Err(Error::TextBuilder("empty children".into()));
         }
         Ok(Text {
             children: self.children,
+            cursor: self.cursor,
         })
     }
 }
@@ -57,7 +58,6 @@ pub type TextChildren = SmallVec<[TextChild; 10]>;
 pub enum TextChild {
     Nested(Box<Text>),
     Text(SmolStr),
-    Cursor(Cursor),
 }
 
 impl From<Text> for TextChild {
@@ -69,11 +69,5 @@ impl From<Text> for TextChild {
 impl From<SmolStr> for TextChild {
     fn from(value: SmolStr) -> Self {
         Self::Text(value)
-    }
-}
-
-impl From<Cursor> for TextChild {
-    fn from(value: Cursor) -> Self {
-        Self::Cursor(value)
     }
 }

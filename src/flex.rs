@@ -1,8 +1,9 @@
-use crate::{Component, ComponentInterface, Error, Grid};
+use crate::{Component, ComponentInterface, Cursor, Error, Grid};
 
 pub struct FlexColumn<'a> {
     pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
+    pub cursor: Option<Cursor>,
 }
 
 impl<'a> ComponentInterface for FlexColumn<'a> {

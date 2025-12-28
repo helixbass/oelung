@@ -67,13 +67,11 @@ impl<'a> ComponentInterface for TextArea<'a> {
             children => [
               %Text
                 text => "Top area"
-                cursor => %Cursor.Relative
-                  // x => cursor_position.x
-                  // y => cursor_position.y
-                  x => 0
-                  y => 0
             ]
             flex_grow => 1
+            cursor => %Cursor.Relative
+              x => cursor_position.x
+              y => cursor_position.y
         })
     }
 

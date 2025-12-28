@@ -10,24 +10,13 @@ use syn::{
 mod custom_keywords {
     syn::custom_keyword!(FlexColumn);
     syn::custom_keyword!(Text);
-    syn::custom_keyword!(Cursor);
     syn::custom_keyword!(children);
 }
 
 enum Element {
     FlexColumn(FlexColumn),
     Text(Text),
-    Cursor(Cursor),
     Component(Expr),
-}
-
-impl Element {
-    pub fn into_cursor(self) -> Cursor {
-        match self {
-            Self::Cursor(cursor) => cursor,
-            _ => panic!("expected cursor"),
-        }
-    }
 }
 
 impl Parse for Element {
@@ -41,17 +30,6 @@ impl Parse for Element {
             let name: Ident = input.parse().unwrap();
             assert_eq!(name.to_string(), "Text");
             Self::Text(input.parse()?)
-        } else if input.peek(custom_keywords::Cursor) {
-            let name: Ident = input.parse().unwrap();
-            assert_eq!(name.to_string(), "Cursor");
-            Self::Cursor({
-                input.parse::<Token![.]>()?;
-                let relative: Ident = input.parse()?;
-                if relative.to_string() != "Relative" {
-                    return Err(input.error(format!("Expected `Relative`")));
-                }
-                input.parse()?
-            })
         } else {
             let component = input.parse::<LessThanBinaryExpr>()?.expr;
             Self::Component(component)
@@ -66,7 +44,6 @@ impl ToTokens for Element {
                 quote! { ::oelung::Component::FlexColumn(#flex_column) }
             }
             Self::Text(text) => quote! { ::oelung::Component::Text(#text) },
-            Self::Cursor(cursor) => quote! { ::oelung::Component::Cursor(#cursor) },
             Self::Component(component) => {
                 quote! { ::oelung::Component::Component(::std::boxed::Box::new(#component)) }
             }
@@ -149,6 +126,16 @@ struct Cursor {
 
 impl Parse for Cursor {
     fn parse(input: ParseStream) -> Result<Self> {
+        let name: Ident = input.parse().unwrap();
+        if name.to_string() != "Cursor" {
+            return Err(input.error(format!("Expected `Cursor`")));
+        }
+        input.parse::<Token![.]>()?;
+        let relative: Ident = input.parse()?;
+        if relative.to_string() != "Relative" {
+            return Err(input.error(format!("Expected `Relative`")));
+        }
+
         let mut x: Option<LitInt> = _d();
         let mut y: Option<LitInt> = _d();
 
@@ -189,6 +176,7 @@ impl ToTokens for Cursor {
 
 struct Text {
     pub children: Vec<TextChild>,
+    pub cursor: Option<Cursor>,
 }
 
 impl Parse for Text {
@@ -198,36 +186,38 @@ impl Parse for Text {
         let mut children: Option<Vec<TextChild>> = _d();
 
         match input.peek(Ident) && input.peek2(Token![=>]) {
-            true => match input.peek(custom_keywords::children) {
-                true => {
-                    let _ = input.parse::<custom_keywords::children>().unwrap();
+            true => {
+                while input.peek(Ident) {
+                    let key = input.parse::<Ident>().unwrap().to_string();
                     input.parse::<Token![=>]>()?;
-                    let children_content;
-                    bracketed!(children_content in input);
-                    let children = children.populate_default();
-                    while !children_content.is_empty() {
-                        children.push(children_content.parse()?);
-                        children_content.parse::<Option<Token![,]>>()?;
-                    }
-                }
-                false => {
-                    while input.peek(Ident) {
-                        let key = input.parse::<Ident>().unwrap().to_string();
-                        input.parse::<Token![=>]>()?;
-                        match &*key {
-                            "text" => {
-                                assert!(text.is_none(), "Already saw 'text' key");
-                                text = Some(input.parse()?);
-                            }
-                            "cursor" => {
-                                assert!(cursor.is_none(), "Already saw 'cursor' key");
-                                cursor = Some(input.parse::<Element>()?.into_cursor());
-                            }
-                            key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                    match &*key {
+                        "text" => {
+                            assert!(text.is_none(), "Already saw 'text' key");
+                            assert!(
+                                children.is_none(),
+                                "Only provide one of 'text' or 'children'"
+                            );
+                            text = Some(input.parse()?);
                         }
+                        "cursor" => {
+                            assert!(cursor.is_none(), "Already saw 'cursor' key");
+                            cursor = Some(input.parse()?);
+                        }
+                        "children" => {
+                            assert!(children.is_none(), "Already saw 'children' key");
+                            assert!(text.is_none(), "Only provide one of 'text' or 'children'");
+                            let children_content;
+                            bracketed!(children_content in input);
+                            let children = children.populate_default();
+                            while !children_content.is_empty() {
+                                children.push(children_content.parse()?);
+                                children_content.parse::<Option<Token![,]>>()?;
+                            }
+                        }
+                        key => return Err(input.error(format!("Unexpected key `{key}`"))),
                     }
                 }
-            },
+            }
             false => {
                 text = Some(input.parse()?);
             }
@@ -235,13 +225,11 @@ impl Parse for Text {
 
         if children.is_none() {
             children = Some(vec![TextChild::Text(text.expect("Expected `text`"))]);
-            if let Some(cursor) = cursor {
-                children.as_mut().unwrap().push(TextChild::Cursor(cursor));
-            }
         }
 
         Ok(Self {
             children: children.unwrap(),
+            cursor,
         })
     }
 }
@@ -251,12 +239,17 @@ impl ToTokens for Text {
         let children = self.children.iter().map(|child| match child {
             TextChild::Text(text) => quote! { .text_child(#text) },
             TextChild::Nested(nested) => quote! { .nested_child(#nested) },
-            TextChild::Cursor(cursor) => quote! { .cursor_child(#cursor) },
         });
+
+        let cursor = match self.cursor.as_ref() {
+            None => quote! {},
+            Some(cursor) => quote! { .cursor(#cursor) },
+        };
 
         quote! {
             ::oelung::TextBuilder::default()
                 #(#children)*
+                #cursor
                 .build()?
         }
         .to_tokens(tokens)
@@ -266,7 +259,6 @@ impl ToTokens for Text {
 enum TextChild {
     Text(LitStrOrExpr),
     Nested(Text),
-    Cursor(Cursor),
 }
 
 impl TextChild {
@@ -290,8 +282,7 @@ impl Parse for TextChild {
                     Self::Nested(text)
                 }
             }
-            Element::Cursor(cursor) => Self::Cursor(cursor),
-            _ => return Err(input.error("Expected text or cursor child")),
+            _ => return Err(input.error("Expected text child")),
         })
     }
 }
