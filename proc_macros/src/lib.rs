@@ -11,6 +11,7 @@ mod custom_keywords {
     syn::custom_keyword!(FlexColumn);
     syn::custom_keyword!(Text);
     syn::custom_keyword!(Cursor);
+    syn::custom_keyword!(children);
 }
 
 enum Element {
@@ -187,62 +188,111 @@ impl ToTokens for Cursor {
 }
 
 struct Text {
-    pub text: LitStrOrExpr,
-    pub cursor: Option<Cursor>,
+    pub children: Vec<TextChild>,
 }
 
 impl Parse for Text {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut text: Option<LitStrOrExpr> = _d();
         let mut cursor: Option<Cursor> = _d();
+        let mut children: Option<Vec<TextChild>> = _d();
 
         match input.peek(Ident) && input.peek2(Token![=>]) {
-            true => {
-                while input.peek(Ident) {
-                    let key = input.parse::<Ident>().unwrap().to_string();
+            true => match input.peek(custom_keywords::children) {
+                true => {
+                    let _ = input.parse::<custom_keywords::children>().unwrap();
                     input.parse::<Token![=>]>()?;
-                    match &*key {
-                        "text" => {
-                            assert!(text.is_none(), "Already saw 'text' key");
-                            text = Some(input.parse()?);
-                        }
-                        "cursor" => {
-                            assert!(cursor.is_none(), "Already saw 'cursor' key");
-                            cursor = Some(input.parse::<Element>()?.into_cursor());
-                        }
-                        key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                    let children_content;
+                    bracketed!(children_content in input);
+                    let children = children.populate_default();
+                    while !children_content.is_empty() {
+                        children.push(children_content.parse()?);
+                        children_content.parse::<Option<Token![,]>>()?;
                     }
                 }
-            }
+                false => {
+                    while input.peek(Ident) {
+                        let key = input.parse::<Ident>().unwrap().to_string();
+                        input.parse::<Token![=>]>()?;
+                        match &*key {
+                            "text" => {
+                                assert!(text.is_none(), "Already saw 'text' key");
+                                text = Some(input.parse()?);
+                            }
+                            "cursor" => {
+                                assert!(cursor.is_none(), "Already saw 'cursor' key");
+                                cursor = Some(input.parse::<Element>()?.into_cursor());
+                            }
+                            key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                        }
+                    }
+                }
+            },
             false => {
                 text = Some(input.parse()?);
             }
         }
 
+        if children.is_none() {
+            children = Some(vec![TextChild::Text(text.expect("Expected `text`"))]);
+            if let Some(cursor) = cursor {
+                children.as_mut().unwrap().push(TextChild::Cursor(cursor));
+            }
+        }
+
         Ok(Self {
-            text: text.expect("Expected `text`"),
-            cursor,
+            children: children.unwrap(),
         })
     }
 }
 
 impl ToTokens for Text {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let text = &self.text;
-        let cursor = match self.cursor.as_ref() {
-            None => quote! {},
-            Some(cursor) => quote! {
-                .cursor_child(#cursor)
-            },
-        };
+        let children = self.children.iter().map(|child| match child {
+            TextChild::Text(text) => quote! { .text_child(#text) },
+            TextChild::Nested(nested) => quote! { .nested_child(#nested) },
+            TextChild::Cursor(cursor) => quote! { .cursor_child(#cursor) },
+        });
 
         quote! {
             ::oelung::TextBuilder::default()
-                .text_child(#text)
-                #cursor
+                #(#children)*
                 .build()?
         }
         .to_tokens(tokens)
+    }
+}
+
+enum TextChild {
+    Text(LitStrOrExpr),
+    Nested(Text),
+    Cursor(Cursor),
+}
+
+impl TextChild {
+    pub fn into_text(self) -> LitStrOrExpr {
+        match self {
+            Self::Text(text) => text,
+            _ => panic!("Expected text"),
+        }
+    }
+}
+
+impl Parse for TextChild {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let element: Element = input.parse()?;
+
+        Ok(match element {
+            Element::Text(mut text) => {
+                if text.children.len() == 1 && matches!(&text.children[0], TextChild::Text(_)) {
+                    Self::Text(text.children.remove(0).into_text())
+                } else {
+                    Self::Nested(text)
+                }
+            }
+            Element::Cursor(cursor) => Self::Cursor(cursor),
+            _ => return Err(input.error("Expected text or cursor child")),
+        })
     }
 }
 

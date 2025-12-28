@@ -37,6 +37,11 @@ impl TextBuilder {
         self
     }
 
+    pub fn nested_child(mut self, child: Text) -> Self {
+        self.children.push(child.into());
+        self
+    }
+
     pub fn build(self) -> Result<Text, Error> {
         if !self.has_seen_non_cursor_child {
             return Err(Error::TextBuilder("empty children".into()));
