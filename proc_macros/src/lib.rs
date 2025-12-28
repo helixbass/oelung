@@ -11,6 +11,38 @@ mod custom_keywords {
     syn::custom_keyword!(FlexColumn);
     syn::custom_keyword!(Text);
     syn::custom_keyword!(Cursor);
+    syn::custom_keyword!(Fragment);
+}
+
+enum ElementOrFragment {
+    Element(Element),
+    Fragment(Fragment),
+}
+
+impl Parse for ElementOrFragment {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if !input.peek(Token![%]) {
+            return match input.parse::<Token![%]>() {
+                Err(err) => Err(err),
+                _ => unreachable!(),
+            };
+        }
+        Ok(if input.peek2(custom_keywords::Fragment) {
+            Self::Fragment(input.parse()?)
+        } else {
+            Self::Element(input.parse()?)
+        })
+    }
+}
+
+impl ToTokens for ElementOrFragment {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::Fragment(fragment) => quote! { #fragment },
+            Self::Element(element) => quote! { #element },
+        }
+        .to_tokens(tokens)
+    }
 }
 
 enum Element {
@@ -68,6 +100,54 @@ impl ToTokens for Element {
             Self::Cursor(cursor) => quote! { ::oelung::Component::Cursor(#cursor) },
             Self::Component(component) => {
                 quote! { ::oelung::Component::Component(::std::boxed::Box::new(#component)) }
+            }
+        }
+        .to_tokens(tokens)
+    }
+}
+
+struct Fragment {
+    pub children: Vec<Element>,
+}
+
+impl Parse for Fragment {
+    fn parse(input: ParseStream) -> Result<Self> {
+        input.parse::<Token![%]>()?;
+        input.parse::<custom_keywords::Fragment>()?;
+
+        let mut children: Option<Vec<Element>> = _d();
+
+        while input.peek(Ident) {
+            let key = input.parse::<Ident>().unwrap().to_string();
+            input.parse::<Token![=>]>()?;
+            match &*key {
+                "children" => {
+                    assert!(children.is_none(), "Already saw 'children' key");
+                    let children_content;
+                    bracketed!(children_content in input);
+                    let children = children.populate_default();
+                    while !children_content.is_empty() {
+                        children.push(children_content.parse()?);
+                        children_content.parse::<Option<Token![,]>>()?;
+                    }
+                }
+                key => return Err(input.error(format!("Unexpected key `{key}`"))),
+            }
+        }
+
+        Ok(Self {
+            children: children.expect("Expected `children`"),
+        })
+    }
+}
+
+impl ToTokens for Fragment {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let children = &self.children;
+
+        quote! {
+            ::oelung::Fragment {
+                children: vec![#(#children),*],
             }
         }
         .to_tokens(tokens)
@@ -272,10 +352,10 @@ impl ToTokens for LitFloatOrInt {
 
 #[proc_macro]
 pub fn soft(input: TokenStream) -> TokenStream {
-    let element: Element = parse_macro_input!(input);
+    let element_or_fragment: ElementOrFragment = parse_macro_input!(input);
 
     quote! {{
-        #element
+        #element_or_fragment
     }}
     .into()
 }
