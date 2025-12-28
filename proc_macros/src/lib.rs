@@ -38,8 +38,10 @@ impl Parse for ElementOrFragment {
 impl ToTokens for ElementOrFragment {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
-            Self::Fragment(fragment) => quote! { #fragment },
-            Self::Element(element) => quote! { #element },
+            Self::Fragment(fragment) => {
+                quote! { ::oelung::ComponentOrFragment::Fragment(#fragment) }
+            }
+            Self::Element(element) => quote! { ::oelung::ComponentOrFragment::Component(#element) },
         }
         .to_tokens(tokens)
     }

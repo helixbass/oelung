@@ -56,7 +56,7 @@ impl ComponentInterface for StatusBar {
           %Fragment
             children => [
               %Text "some_file.rs ["
-              %Text self.current_percent.to_smolstr()
+              %Text self.current_percent
               %Text "%] 999 lines |1"
             ]
         })

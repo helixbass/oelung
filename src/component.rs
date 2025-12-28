@@ -23,6 +23,15 @@ pub enum ComponentOrFragment {
     Fragment(Fragment),
 }
 
+impl ComponentOrFragment {
+    pub fn into_component(self) -> Component {
+        match self {
+            Self::Component(component) => component,
+            _ => panic!("expected component"),
+        }
+    }
+}
+
 pub struct Fragment {
     pub children: Vec<Component>,
 }

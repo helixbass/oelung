@@ -33,7 +33,8 @@ impl Renderer {
         })
     }
 
-    pub fn render(&mut self, component: Component) -> Result<(), Error> {
+    pub fn render(&mut self, component_or_fragment: ComponentOrFragment) -> Result<(), Error> {
+        let component = component_or_fragment.into_component();
         self.rendered_cursor_position_in_this_render = _d();
         self.size = size()?;
 

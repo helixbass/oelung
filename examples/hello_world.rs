@@ -1,6 +1,6 @@
 use crossterm::event::{self, Event, KeyCode};
 
-use oelung::{Cursor, Renderer, TextBuilder};
+use oelung::{soft, Renderer};
 
 fn main() -> Result<(), anyhow::Error> {
     let mut renderer = Renderer::try_new()?;
@@ -18,15 +18,13 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
-    renderer.render(
-        TextBuilder::default()
-            .text_child("Hello world")
-            .text_child(" ")
-            .text_child("(hit q to quit)")
-            .cursor_child(Cursor::relative().x(0).y(0))
-            .build()?
-            .into(),
-    )?;
+    renderer.render(soft! {
+        %Text
+          text => "Hello world (hit q to quit)"
+          cursor => %Cursor.Relative
+            x => 0
+            y => 0
+    })?;
 
     Ok(())
 }
