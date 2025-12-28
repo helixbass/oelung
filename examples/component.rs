@@ -5,7 +5,9 @@ use oelung::{soft, ComponentInterface, ComponentOrFragment, Grid, Renderer};
 fn main() -> Result<(), anyhow::Error> {
     let mut renderer = Renderer::try_new()?;
 
-    render_screen(&mut renderer)?;
+    let current_percent = 14;
+
+    render_screen(&mut renderer, current_percent)?;
 
     loop {
         match event::read()? {
@@ -17,7 +19,7 @@ fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
+fn render_screen(renderer: &mut Renderer, current_percent: u32) -> Result<(), anyhow::Error> {
     renderer.render(soft! {
       %FlexColumn
         children => [
