@@ -12,8 +12,6 @@ pub enum Error {
     RenderedCursorMoreThanOnce,
     #[error("{0}")]
     Anyhow(anyhow::Error),
-    #[error("Cannot render fragment at top level")]
-    TopLevelFragment,
 }
 
 impl From<anyhow::Error> for Error {

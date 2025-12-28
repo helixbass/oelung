@@ -8,7 +8,7 @@ mod flex;
 mod render;
 mod text;
 
-pub use component::{Component, ComponentInterface, ComponentOrFragment, Fragment};
+pub use component::{Component, ComponentInterface};
 pub use crossterm::{size, take_over_screen, Size, TakeOverScreenGuard};
 pub use cursor::{Cursor, Offset};
 pub use error::Error;

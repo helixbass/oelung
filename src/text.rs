@@ -3,7 +3,7 @@ use std::fmt::Display;
 use smallvec::SmallVec;
 use smol_str::{SmolStr, ToSmolStr};
 
-use crate::{ComponentInterface, ComponentOrFragment, Cursor, Error, Grid};
+use crate::{Component, ComponentInterface, Cursor, Error, Grid};
 
 pub struct Text {
     pub children: TextChildren,
@@ -14,7 +14,7 @@ impl ComponentInterface for Text {
         Some(1)
     }
 
-    fn render(&self, _grid: Grid) -> Result<ComponentOrFragment, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
         unreachable!()
     }
 }

@@ -1,6 +1,6 @@
 use crossterm::event::{self, Event, KeyCode};
 
-use oelung::{soft, ComponentInterface, ComponentOrFragment, Grid, Renderer};
+use oelung::{soft, Component, ComponentInterface, Grid, Renderer};
 
 fn main() -> Result<(), anyhow::Error> {
     let mut renderer = Renderer::try_new()?;
@@ -51,9 +51,9 @@ impl StatusBar {
 }
 
 impl ComponentInterface for StatusBar {
-    fn render(&self, _grid: Grid) -> Result<ComponentOrFragment, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component, anyhow::Error> {
         Ok(soft! {
-          %Fragment
+          %Text
             children => [
               %Text "some_file.rs ["
               %Text self.current_percent

@@ -10,8 +10,8 @@ use crossterm::{
 use squalid::_d;
 
 use crate::{
-    size, take_over_screen, Component, ComponentInterface, ComponentOrFragment, Cursor, Error,
-    Offset, Size, TakeOverScreenGuard, Text, TextChild,
+    size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size,
+    TakeOverScreenGuard, Text, TextChild,
 };
 
 pub struct Renderer {
@@ -33,11 +33,7 @@ impl Renderer {
         })
     }
 
-    pub fn render(&mut self, component_or_fragment: ComponentOrFragment) -> Result<(), Error> {
-        let mut component = match component_or_fragment {
-            ComponentOrFragment::Component(component) => component,
-            _ => return Err(Error::TopLevelFragment),
-        };
+    pub fn render(&mut self, mut component: Component) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
         self.size = size()?;
 
@@ -58,10 +54,7 @@ impl Renderer {
             height: self.size.height,
         };
         while matches!(component, Component::Component(_)) {
-            component = match component.into_component().render(grid)? {
-                ComponentOrFragment::Component(component) => component,
-                _ => return Err(Error::TopLevelFragment),
-            };
+            component = component.into_component().render(grid)?;
         }
         let mut rendering_context = RenderingContext::new(grid);
         rendering_context.render(component)?;
@@ -155,25 +148,28 @@ impl RenderingContext {
                     ));
                 let mut num_rows_rendered = 0;
                 let num_children = flex_column.children.len();
-                for child in flex_column.children {
+                for mut child in flex_column.children {
                     let height = if child.height() == Some(1) {
                         1
                     } else {
                         self.grid.height - (u16::try_from(num_children).unwrap() - 1)
                     };
-                    let mut rendering_context = RenderingContext::new(Grid {
+                    let grid = Grid {
                         left: self.grid.left,
                         top: self.grid.top + num_rows_rendered,
                         width: self.grid.width,
                         height,
-                    });
+                    };
+                    while matches!(child, Component::Component(_)) {
+                        child = child.into_component().render(grid)?;
+                    }
+                    let mut rendering_context = RenderingContext::new(grid);
                     rendering_context.render(child)?;
                     let RenderingContext {
                         staged,
                         rendered_cursor_position,
                         ..
                     } = rendering_context;
-                    eprintln!("staged: {:#?}, height: {height:#?}", staged.lines);
                     assert!(staged.lines.len() <= usize::from(height));
                     let num_less_rendered_vs_height = usize::from(height) - staged.lines.len();
                     self.staged.lines.extend(staged.lines);
@@ -191,19 +187,7 @@ impl RenderingContext {
                     }
                 }
             }
-            Component::Component(component) => {
-                let rendered = component.render(self.grid)?;
-                match rendered {
-                    ComponentOrFragment::Component(rendered) => {
-                        self.render(rendered)?;
-                    }
-                    ComponentOrFragment::Fragment(rendered_fragment) => {
-                        for child in rendered_fragment.children {
-                            self.render(child)?;
-                        }
-                    }
-                }
-            }
+            Component::Component(_) => unreachable!(),
         }
 
         Ok(())
