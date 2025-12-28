@@ -12,6 +12,8 @@ pub enum Error {
     RenderedCursorMoreThanOnce,
     #[error("{0}")]
     Anyhow(anyhow::Error),
+    #[error("Cannot render a non-text child inside a Text component")]
+    RenderedNonTextChildInText,
 }
 
 impl From<anyhow::Error> for Error {

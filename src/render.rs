@@ -234,6 +234,17 @@ impl RenderingContext {
             match child {
                 TextChild::Text(text) => self.print_text(&text, line_num, style)?,
                 TextChild::Nested(text) => self.render_text(*text, line_num, style)?,
+                TextChild::NestedComponent(component) => {
+                    let mut rendered = component.render(self.grid)?;
+                    while matches!(rendered, Component::Component(_)) {
+                        rendered = rendered.into_component().render(self.grid)?;
+                    }
+                    let rendered = match rendered {
+                        Component::Text(rendered) => rendered,
+                        _ => return Err(Error::RenderedNonTextChildInText),
+                    };
+                    self.render_text(rendered, line_num, style)?;
+                }
             }
         }
 
