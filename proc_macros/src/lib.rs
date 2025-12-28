@@ -267,20 +267,17 @@ impl ToTokens for Cursor {
 }
 
 struct Text {
-    pub text: LitStr,
+    pub text: LitStrOrExpr,
     pub cursor: Option<Cursor>,
 }
 
 impl Parse for Text {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut text: Option<LitStr> = _d();
+        let mut text: Option<LitStrOrExpr> = _d();
         let mut cursor: Option<Cursor> = _d();
 
-        match input.peek(LitStr) {
+        match input.peek(Ident) && input.peek2(Token![=>]) {
             true => {
-                text = input.parse().unwrap();
-            }
-            false => {
                 while input.peek(Ident) {
                     let key = input.parse::<Ident>().unwrap().to_string();
                     input.parse::<Token![=>]>()?;
@@ -296,6 +293,9 @@ impl Parse for Text {
                         key => return Err(input.error(format!("Unexpected key `{key}`"))),
                     }
                 }
+            }
+            false => {
+                text = Some(input.parse()?);
             }
         }
 
@@ -345,6 +345,30 @@ impl ToTokens for LitFloatOrInt {
         match self {
             Self::Float(float) => quote! { #float },
             Self::Int(int) => quote! { #int },
+        }
+        .to_tokens(tokens)
+    }
+}
+
+enum LitStrOrExpr {
+    LitStr(LitStr),
+    Expr(Expr),
+}
+
+impl Parse for LitStrOrExpr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        match input.peek(LitStr) {
+            true => Ok(Self::LitStr(input.parse().unwrap())),
+            false => Ok(Self::Expr(input.parse::<LessThanBinaryExpr>()?.expr)),
+        }
+    }
+}
+
+impl ToTokens for LitStrOrExpr {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::LitStr(str) => quote! { #str },
+            Self::Expr(expr) => quote! { #expr },
         }
         .to_tokens(tokens)
     }
