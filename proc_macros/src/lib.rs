@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use squalid::{OptionExtDefault, _d};
 use syn::{
-    bracketed,
+    bracketed, parenthesized,
     parse::{Parse, ParseStream, Result},
     parse_macro_input, Expr, Ident, LessThanBinaryExpr, LitFloat, LitInt, LitStr, Token,
 };
@@ -192,6 +192,7 @@ impl ToTokens for Cursor {
 struct Text {
     pub children: Vec<TextChild>,
     pub cursor: Option<Cursor>,
+    pub color: Option<Color>,
 }
 
 impl Parse for Text {
@@ -199,6 +200,7 @@ impl Parse for Text {
         let mut text: Option<LitStrOrExpr> = _d();
         let mut cursor: Option<Cursor> = _d();
         let mut children: Option<Vec<TextChild>> = _d();
+        let mut color: Option<Color> = _d();
 
         match input.peek(Ident) && input.peek2(Token![=>]) {
             true => {
@@ -229,6 +231,10 @@ impl Parse for Text {
                                 children_content.parse::<Option<Token![,]>>()?;
                             }
                         }
+                        "color" => {
+                            assert!(color.is_none(), "Already saw 'color' key");
+                            color = Some(input.parse()?);
+                        }
                         key => return Err(input.error(format!("Unexpected key `{key}`"))),
                     }
                 }
@@ -245,6 +251,7 @@ impl Parse for Text {
         Ok(Self {
             children: children.unwrap(),
             cursor,
+            color,
         })
     }
 }
@@ -261,10 +268,16 @@ impl ToTokens for Text {
             Some(cursor) => quote! { .cursor(#cursor) },
         };
 
+        let color = match self.color.as_ref() {
+            None => quote! {},
+            Some(color) => quote! { .color(#color) },
+        };
+
         quote! {
             ::oelung::TextBuilder::default()
                 #(#children)*
                 #cursor
+                #color
                 .build()?
         }
         .to_tokens(tokens)
@@ -299,6 +312,35 @@ impl Parse for TextChild {
             }
             _ => return Err(input.error("Expected text child")),
         })
+    }
+}
+
+enum Color {
+    Ansi(LitInt),
+}
+
+impl Parse for Color {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let name: Ident = input.parse()?;
+        if name.to_string() != "Ansi" {
+            return Err(input.error(format!("Expected 'Ansi'")));
+        }
+        let color_content;
+        parenthesized!(color_content in input);
+        let ansi: LitInt = color_content.parse()?;
+
+        Ok(Self::Ansi(ansi))
+    }
+}
+
+impl ToTokens for Color {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::Ansi(ansi) => quote! {
+                ::oelung::crossterm::style::Color::AnsiValue(#ansi)
+            },
+        }
+        .to_tokens(tokens)
     }
 }
 

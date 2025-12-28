@@ -1,5 +1,7 @@
 pub use proc_macros::soft;
 
+pub use crossterm;
+
 mod component;
 mod crossterm;
 mod cursor;
