@@ -126,6 +126,7 @@ struct Cursor {
 
 impl Parse for Cursor {
     fn parse(input: ParseStream) -> Result<Self> {
+        input.parse::<Token![%]>()?;
         let name: Ident = input.parse().unwrap();
         if name.to_string() != "Cursor" {
             return Err(input.error(format!("Expected `Cursor`")));
