@@ -24,6 +24,10 @@ fn main() -> Result<(), anyhow::Error> {
     loop {
         match event::read()? {
             Event::Key(key_event) if key_event.code == KeyCode::Char('q') => break,
+            Event::Key(key_event) if key_event.code == KeyCode::Char('j') => {
+                cursor_position.row += 1;
+                render_screen(&mut renderer, current_percent, cursor_position, &lines)?;
+            }
             _ => {}
         }
     }
