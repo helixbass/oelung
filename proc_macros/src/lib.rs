@@ -134,8 +134,8 @@ impl ToTokens for FlexColumn {
 }
 
 struct Cursor {
-    pub x: LitInt,
-    pub y: LitInt,
+    pub x: LitIntOrExpr,
+    pub y: LitIntOrExpr,
 }
 
 impl Parse for Cursor {
@@ -151,8 +151,8 @@ impl Parse for Cursor {
             return Err(input.error(format!("Expected `Relative`")));
         }
 
-        let mut x: Option<LitInt> = _d();
-        let mut y: Option<LitInt> = _d();
+        let mut x: Option<LitIntOrExpr> = _d();
+        let mut y: Option<LitIntOrExpr> = _d();
 
         while input.peek(Ident) {
             let key = input.parse::<Ident>().unwrap().to_string();
@@ -344,6 +344,30 @@ impl ToTokens for LitStrOrExpr {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
             Self::LitStr(str) => quote! { #str },
+            Self::Expr(expr) => quote! { #expr },
+        }
+        .to_tokens(tokens)
+    }
+}
+
+enum LitIntOrExpr {
+    LitInt(LitInt),
+    Expr(Expr),
+}
+
+impl Parse for LitIntOrExpr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        match input.peek(LitInt) {
+            true => Ok(Self::LitInt(input.parse().unwrap())),
+            false => Ok(Self::Expr(input.parse::<LessThanBinaryExpr>()?.expr)),
+        }
+    }
+}
+
+impl ToTokens for LitIntOrExpr {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::LitInt(int) => quote! { #int },
             Self::Expr(expr) => quote! { #expr },
         }
         .to_tokens(tokens)

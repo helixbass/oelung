@@ -74,8 +74,8 @@ impl<'a> ComponentInterface for TextArea<'a> {
             ]
             flex_grow => 1
             cursor => %Cursor.Relative
-              x => self.cursor_position.x
-              y => self.cursor_position.y
+              x => self.cursor_position.column
+              y => self.cursor_position.row
         })
     }
 
