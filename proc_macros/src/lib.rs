@@ -261,6 +261,9 @@ impl ToTokens for Text {
         let children = self.children.iter().map(|child| match child {
             TextChild::Text(text) => quote! { .text_child(#text) },
             TextChild::Nested(nested) => quote! { .nested_child(#nested) },
+            TextChild::NestedComponent(nested_component) => {
+                quote! { .nested_component_child(#nested_component) }
+            }
         });
 
         let cursor = match self.cursor.as_ref() {
@@ -287,6 +290,7 @@ impl ToTokens for Text {
 enum TextChild {
     Text(LitStrOrExpr),
     Nested(Text),
+    NestedComponent(Expr),
 }
 
 impl TextChild {
@@ -310,6 +314,7 @@ impl Parse for TextChild {
                     Self::Nested(text)
                 }
             }
+            Element::Component(component) => Self::NestedComponent(component),
             _ => return Err(input.error("Expected text child")),
         })
     }
