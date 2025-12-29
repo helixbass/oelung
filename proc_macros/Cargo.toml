@@ -9,6 +9,6 @@ proc-macro = true
 [dependencies]
 quote = "1.0.42"
 squalid = { git = "https://github.com/helixbass/squalid", rev = "1a43e5d" }
-syn = { git = "https://github.com/helixbass/syn", rev = "02ea0904" }
+syn = { git = "https://github.com/helixbass/syn", features = [ "full" ], rev = "02ea0904" }
 # syn = { version = "2.0.111", features = [ "full" ] }
 proc-macro2 = "1.0.103"
