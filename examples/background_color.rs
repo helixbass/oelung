@@ -20,8 +20,8 @@ fn main() -> Result<(), anyhow::Error> {
 fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
     renderer.render(soft! {
         %Text
-          background_color => Ansi(155)
-          text => "Hello world (hit q to quit)"
+          background_color => Ansi(52)
+          text => "On red background (hit q to quit)"
           cursor => %Cursor.Relative
             x => 0
             y => 0
