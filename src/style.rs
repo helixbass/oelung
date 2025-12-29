@@ -5,4 +5,6 @@ use derive_builder::Builder;
 pub struct Style {
     #[builder(setter(strip_option), default)]
     pub color: Option<Color>,
+    #[builder(setter(strip_option), default)]
+    pub background_color: Option<Color>,
 }

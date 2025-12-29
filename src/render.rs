@@ -3,7 +3,7 @@ use std::iter;
 
 use crossterm::{
     cursor,
-    style::{Color, Print, SetForegroundColor},
+    style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType},
     QueueableCommand,
 };
@@ -109,6 +109,18 @@ impl Renderer {
                         self.stdout
                             .queue(SetForegroundColor(Color::Reset))
                             .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
+                    }
+                }
+                match style.background_color {
+                    Some(background_color) => {
+                        self.stdout
+                            .queue(SetBackgroundColor(background_color))
+                            .map_err(|_| Error::Crossterm("set background color failed".into()))?;
+                    }
+                    None => {
+                        self.stdout
+                            .queue(SetBackgroundColor(Color::Reset))
+                            .map_err(|_| Error::Crossterm("set background color failed".into()))?;
                     }
                 }
                 self.stdout

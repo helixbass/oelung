@@ -28,6 +28,7 @@ pub struct TextBuilder<'a> {
     pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
     pub color: Option<Color>,
+    pub background_color: Option<Color>,
 }
 
 impl<'a> TextBuilder<'a> {
@@ -56,6 +57,11 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
+    pub fn background_color(mut self, color: Color) -> Self {
+        self.background_color = Some(color);
+        self
+    }
+
     pub fn build(self) -> Result<Text<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::TextBuilder("empty children".into()));
@@ -67,6 +73,9 @@ impl<'a> TextBuilder<'a> {
                 let mut style = StyleBuilder::default();
                 if let Some(color) = self.color {
                     style.color(color);
+                }
+                if let Some(background_color) = self.background_color {
+                    style.background_color(background_color);
                 }
                 Some(style.build().unwrap())
             },
