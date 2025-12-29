@@ -205,6 +205,7 @@ struct Text {
     pub children: Vec<TextChild>,
     pub cursor: Option<Cursor>,
     pub color: Option<Color>,
+    pub background_color: Option<Color>,
 }
 
 impl Parse for Text {
@@ -213,6 +214,7 @@ impl Parse for Text {
         let mut cursor: Option<Cursor> = _d();
         let mut children: Option<Vec<TextChild>> = _d();
         let mut color: Option<Color> = _d();
+        let mut background_color: Option<Color> = _d();
 
         match input.peek(Ident) && input.peek2(Token![=>]) {
             true => {
@@ -247,6 +249,13 @@ impl Parse for Text {
                             assert!(color.is_none(), "Already saw 'color' key");
                             color = Some(input.parse()?);
                         }
+                        "background_color" => {
+                            assert!(
+                                background_color.is_none(),
+                                "Already saw 'background_color' key"
+                            );
+                            background_color = Some(input.parse()?);
+                        }
                         key => return Err(input.error(format!("Unexpected key `{key}`"))),
                     }
                 }
@@ -264,6 +273,7 @@ impl Parse for Text {
             children: children.unwrap(),
             cursor,
             color,
+            background_color,
         })
     }
 }
@@ -288,11 +298,17 @@ impl ToTokens for Text {
             Some(color) => quote! { .color(#color) },
         };
 
+        let background_color = match self.background_color.as_ref() {
+            None => quote! {},
+            Some(background_color) => quote! { .background_color(#background_color) },
+        };
+
         quote! {
             ::oelung::TextBuilder::default()
                 #(#children)*
                 #cursor
                 #color
+                #background_color
                 .build()?
         }
         .to_tokens(tokens)
