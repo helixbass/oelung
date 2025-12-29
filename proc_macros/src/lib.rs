@@ -262,7 +262,7 @@ impl ToTokens for Text {
             TextChild::Text(text) => quote! { .text_child(#text) },
             TextChild::Nested(nested) => quote! { .nested_child(#nested) },
             TextChild::NestedComponent(nested_component) => {
-                quote! { .nested_component_child(#nested_component) }
+                quote! { .nested_component_child(::std::boxed::Box::new(#nested_component)) }
             }
         });
 
