@@ -46,7 +46,7 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
-    pub fn nested_child_component(mut self, child: Box<dyn ComponentInterface + 'a>) -> Self {
+    pub fn nested_component_child(mut self, child: Box<dyn ComponentInterface + 'a>) -> Self {
         self.children.push(TextChild::NestedComponent(child));
         self
     }
