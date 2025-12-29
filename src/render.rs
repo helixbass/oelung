@@ -240,6 +240,9 @@ impl RenderingContext {
             if let Some(color) = text_style.color {
                 style.color = Some(color);
             }
+            if let Some(background_color) = text_style.background_color {
+                style.background_color = Some(background_color);
+            }
         }
 
         for child in text.children {
