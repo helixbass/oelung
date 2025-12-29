@@ -17,22 +17,31 @@ enum Element {
     FlexColumn(FlexColumn),
     Text(Text),
     Component(Expr),
+    AlreadyComponent(Expr),
 }
 
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Token![%]>()?;
-        Ok(if input.peek(custom_keywords::FlexColumn) {
-            let name: Ident = input.parse().unwrap();
-            assert_eq!(name.to_string(), "FlexColumn");
-            Self::FlexColumn(input.parse()?)
-        } else if input.peek(custom_keywords::Text) {
-            let name: Ident = input.parse().unwrap();
-            assert_eq!(name.to_string(), "Text");
-            Self::Text(input.parse()?)
-        } else {
-            let component = input.parse::<LessThanBinaryExpr>()?.expr;
-            Self::Component(component)
+        Ok(match input.peek(Token![%]) {
+            true => {
+                input.parse::<Token![%]>().unwrap();
+                if input.peek(custom_keywords::FlexColumn) {
+                    let name: Ident = input.parse().unwrap();
+                    assert_eq!(name.to_string(), "FlexColumn");
+                    Self::FlexColumn(input.parse()?)
+                } else if input.peek(custom_keywords::Text) {
+                    let name: Ident = input.parse().unwrap();
+                    assert_eq!(name.to_string(), "Text");
+                    Self::Text(input.parse()?)
+                } else {
+                    let component = input.parse::<LessThanBinaryExpr>()?.expr;
+                    Self::Component(component)
+                }
+            }
+            false => {
+                let expr = input.parse::<LessThanBinaryExpr>()?.expr;
+                Self::AlreadyComponent(expr)
+            }
         })
     }
 }
@@ -46,6 +55,9 @@ impl ToTokens for Element {
             Self::Text(text) => quote! { ::oelung::Component::Text(#text) },
             Self::Component(component) => {
                 quote! { ::oelung::Component::Component(::std::boxed::Box::new(#component)) }
+            }
+            Self::AlreadyComponent(component) => {
+                quote! { #component }
             }
         }
         .to_tokens(tokens)
