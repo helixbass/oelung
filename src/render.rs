@@ -20,25 +20,31 @@ pub struct Renderer {
     pub stdout: StdoutLock<'static>,
     pub size: Size,
     pub rendered_cursor_position_in_this_render: Option<Position>,
-    pub staged_this_render: Option<Staged>,
+    pub grids: [Staged; 2],
+    pub last_rendered_grid_index: Option<usize>,
 }
 
 impl Renderer {
     #[instrument(level = "trace")]
     pub fn try_new() -> Result<Self, Error> {
+        let size = size()?;
+        let default_grid_row = StyledChunk::new(" ".repeat(usize::from(size.width)), _d());
         Ok(Self {
             take_over_screen_guard: take_over_screen()?,
             stdout: stdout().lock(),
-            size: size()?,
+            size,
             rendered_cursor_position_in_this_render: _d(),
-            staged_this_render: _d(),
+            last_rendered_grid_index: _d(),
+            grids: [
+                vec![vec![default_grid_row.clone()]; usize::from(size.height)],
+                vec![vec![default_grid_row]; usize::from(size.height)],
+            ],
         })
     }
 
     #[instrument(level = "trace", skip(self, component))]
     pub fn render<'a>(&mut self, component: Component<'a>) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
-        self.size = size()?;
 
         self.stdout
             .queue(Clear(ClearType::All))
@@ -58,12 +64,8 @@ impl Renderer {
             height: self.size.height,
         };
         let mut component = component;
-        let mut outer_components: Vec<Component<'a>> = _d();
         while matches!(component, Component::Component(_)) {
-            outer_components.push(component);
-            component = outer_components[outer_components.len() - 1]
-                .as_component()
-                .render(grid)?;
+            component = component.as_component().render(grid)?;
         }
         let mut rendering_context = RenderingContext::new(grid, style);
         rendering_context.render(component)?;
@@ -72,8 +74,14 @@ impl Renderer {
             rendered_cursor_position,
             ..
         } = rendering_context;
-        self.staged_this_render = Some(staged);
+        self.grids[match self.last_rendered_grid_index {
+            None => 0,
+            Some(0) => 1,
+            Some(1) => 0,
+            _ => unreachable!(),
+        }] = staged;
         if let Some(rendered_cursor_position) = rendered_cursor_position {
+            // TODO: looks like this could never be true?
             if self.rendered_cursor_position_in_this_render.is_some() {
                 return Err(Error::RenderedCursorMoreThanOnce);
             }
@@ -95,17 +103,43 @@ impl Renderer {
             .flush()
             .map_err(|_| Error::Crossterm("flush failed".into()))?;
 
+        self last_rendered_grid_index = Some(match self.last_rendered_grid_index {
+            None => 0,
+            Some(0) => 1,
+            Some(1) => 0,
+            _ => unreachable!(),
+        });
         Ok(())
     }
 
     #[instrument(level = "trace", skip(self))]
     fn render_staged(&mut self) -> Result<(), Error> {
-        let staged = self.staged_this_render.as_ref().unwrap();
+        let staged = &self.grids[match self.last_rendered_grid_index {
+            None => 0,
+            Some(0) => 1,
+            Some(1) => 0,
+            _ => unreachable!(),
+        }];
         // let buffer: Vec<u8> = Vec::with_capacity(self.size.height * self.size.width);
         let mut buffer: Vec<u8> = _d();
-        for (row_index, row) in staged.lines.iter().enumerate() {
-            for (styled_chunk, style) in row {
-                match style.color {
+        let prev_staged = self.last_rendered_grid_index.map(|last_rendered_grid_index| {
+            &self.grids[last_rendered_grid_index]
+        });
+        for (row_index, row) in staged.iter().enumerate() {
+            let prev_staged_row = prev_staged.map(|prev_staged| &prev_staged[row_index]);
+            let num_bytes_printed_in_row = 0;
+            let is_still_matching_prev_staged_row = prev_staged_row.is_some();
+            for (styled_chunk_index, styled_chunk) in row.into_iter().enumerate() {
+                if is_still_matching_prev_staged_row {
+                    if prev_staged_row.unwrap().get(styled_chunk_index) == Some(styled_chunk) {
+                        num_bytes_printed_in_row += styled_chunk.len();
+                        continue;
+                    } else {
+                        is_still_matching_prev_staged_row = false;
+                    }
+                }
+
+                match styled_chunk.style.color {
                     Some(color) => {
                         buffer
                             .queue(SetForegroundColor(color))
@@ -117,7 +151,7 @@ impl Renderer {
                             .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
                     }
                 }
-                match style.background_color {
+                match styled_chunk.style.background_color {
                     Some(background_color) => {
                         buffer
                             .queue(SetBackgroundColor(background_color))
@@ -130,14 +164,10 @@ impl Renderer {
                     }
                 }
                 buffer
-                    .queue(Print(styled_chunk))
+                    .queue(Print(styled_chunk.str))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
-            }
 
-            if row_index < staged.lines.len() - 1 {
-                buffer
-                    .queue(Print("\r\n"))
-                    .map_err(|_| Error::Crossterm("print failed".into()))?;
+                num_bytes_printed_in_row += styled_chunk.str.len();
             }
         }
         self.stdout
@@ -322,7 +352,33 @@ pub struct Grid {
     pub width: u16,
 }
 
-#[derive(Default)]
-pub struct Staged {
-    pub lines: Vec<Vec<(String, Style)>>,
+pub type Staged = Vec<Vec<StyledChunk>>;
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct StyledChunk {
+    pub str: String,
+    pub style: Style,
+}
+
+impl StyledChunk {
+    pub fn new(str: String, style: Style) -> Self {
+        Self { str, style }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Cell {
+    pub color: Option<Color>,
+    pub background_color: Option<Color>,
+    pub ch: char,
+}
+
+impl Default for Cell {
+    fn default() -> Self {
+        Self {
+            color: _d(),
+            background_color: _d(),
+            ch: ' ',
+        }
+    }
 }
