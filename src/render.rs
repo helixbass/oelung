@@ -1,12 +1,13 @@
-use std::io::{stdout, StdoutLock, Write};
+use std::io::Write;
 use std::iter;
 
 use crossterm::{
     cursor,
     style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{Clear, ClearType},
-    QueueableCommand,
+    ExecutableCommand, QueueableCommand,
 };
+use smol_str::{SmolStr, ToSmolStr};
 use squalid::_d;
 use tracing::instrument;
 
@@ -17,7 +18,6 @@ use crate::{
 
 pub struct Renderer {
     pub take_over_screen_guard: TakeOverScreenGuard,
-    pub stdout: StdoutLock<'static>,
     pub size: Size,
     pub rendered_cursor_position_in_this_render: Option<Position>,
     pub grids: [Staged; 2],
@@ -28,10 +28,16 @@ impl Renderer {
     #[instrument(level = "trace")]
     pub fn try_new() -> Result<Self, Error> {
         let size = size()?;
-        let default_grid_row = StyledChunk::new(" ".repeat(usize::from(size.width)), _d());
+        let default_grid_row = StyledChunk::new(" ".repeat(usize::from(size.width)).into(), _d());
+        let mut take_over_screen_guard = take_over_screen()?;
+
+        take_over_screen_guard
+            .stdout
+            .execute(Clear(ClearType::All))
+            .map_err(|_| Error::Crossterm("clear failed".into()))?;
+
         Ok(Self {
-            take_over_screen_guard: take_over_screen()?,
-            stdout: stdout().lock(),
+            take_over_screen_guard,
             size,
             rendered_cursor_position_in_this_render: _d(),
             last_rendered_grid_index: _d(),
@@ -46,13 +52,16 @@ impl Renderer {
     pub fn render<'a>(&mut self, component: Component<'a>) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
 
-        self.stdout
+        self.take_over_screen_guard
+            .stdout
             .queue(Clear(ClearType::All))
             .map_err(|_| Error::Crossterm("clear failed".into()))?;
-        self.stdout
+        self.take_over_screen_guard
+            .stdout
             .queue(cursor::Hide)
             .map_err(|_| Error::Crossterm("hide failed".into()))?;
-        self.stdout
+        self.take_over_screen_guard
+            .stdout
             .queue(cursor::MoveTo(0, 0))
             .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
@@ -91,24 +100,28 @@ impl Renderer {
         self.render_staged()?;
 
         if let Some(cursor_position) = self.rendered_cursor_position_in_this_render {
-            self.stdout
+            self.take_over_screen_guard
+                .stdout
                 .queue(cursor::MoveTo(cursor_position.column, cursor_position.row))
                 .map_err(|_| Error::Crossterm("move to failed".into()))?;
-            self.stdout
+            self.take_over_screen_guard
+                .stdout
                 .queue(cursor::Show)
                 .map_err(|_| Error::Crossterm("show failed".into()))?;
         }
 
-        self.stdout
+        self.take_over_screen_guard
+            .stdout
             .flush()
             .map_err(|_| Error::Crossterm("flush failed".into()))?;
 
-        self last_rendered_grid_index = Some(match self.last_rendered_grid_index {
+        self.last_rendered_grid_index = Some(match self.last_rendered_grid_index {
             None => 0,
             Some(0) => 1,
             Some(1) => 0,
             _ => unreachable!(),
         });
+
         Ok(())
     }
 
@@ -122,17 +135,17 @@ impl Renderer {
         }];
         // let buffer: Vec<u8> = Vec::with_capacity(self.size.height * self.size.width);
         let mut buffer: Vec<u8> = _d();
-        let prev_staged = self.last_rendered_grid_index.map(|last_rendered_grid_index| {
-            &self.grids[last_rendered_grid_index]
-        });
+        let prev_staged = self
+            .last_rendered_grid_index
+            .map(|last_rendered_grid_index| &self.grids[last_rendered_grid_index]);
         for (row_index, row) in staged.iter().enumerate() {
             let prev_staged_row = prev_staged.map(|prev_staged| &prev_staged[row_index]);
-            let num_bytes_printed_in_row = 0;
-            let is_still_matching_prev_staged_row = prev_staged_row.is_some();
+            let mut num_bytes_printed_in_row = 0;
+            let mut is_still_matching_prev_staged_row = prev_staged_row.is_some();
             for (styled_chunk_index, styled_chunk) in row.into_iter().enumerate() {
                 if is_still_matching_prev_staged_row {
                     if prev_staged_row.unwrap().get(styled_chunk_index) == Some(styled_chunk) {
-                        num_bytes_printed_in_row += styled_chunk.len();
+                        num_bytes_printed_in_row += styled_chunk.str.len();
                         continue;
                     } else {
                         is_still_matching_prev_staged_row = false;
@@ -164,13 +177,14 @@ impl Renderer {
                     }
                 }
                 buffer
-                    .queue(Print(styled_chunk.str))
+                    .queue(Print(styled_chunk.str.clone()))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
 
                 num_bytes_printed_in_row += styled_chunk.str.len();
             }
         }
-        self.stdout
+        self.take_over_screen_guard
+            .stdout
             .write_all(&buffer)
             .map_err(|_| Error::Crossterm("write failed".into()))?;
 
@@ -201,7 +215,7 @@ impl RenderingContext {
     pub fn render(&mut self, component: Component) -> Result<(), Error> {
         match component {
             Component::Text(text) => {
-                self.staged.lines.push(_d());
+                self.staged.push(_d());
                 self.render_text(text, 0, self.style)?;
             }
             Component::FlexColumn(flex_column) => {
@@ -251,12 +265,11 @@ impl RenderingContext {
                         rendered_cursor_position,
                         ..
                     } = rendering_context;
-                    assert!(staged.lines.len() <= usize::from(height));
-                    let num_less_rendered_vs_height = usize::from(height) - staged.lines.len();
-                    self.staged.lines.extend(staged.lines);
+                    assert!(staged.len() <= usize::from(height));
+                    let num_less_rendered_vs_height = usize::from(height) - staged.len();
+                    self.staged.extend(staged);
                     if num_less_rendered_vs_height > 0 {
                         self.staged
-                            .lines
                             .extend(iter::repeat(vec![]).take(num_less_rendered_vs_height));
                     }
                     num_rows_rendered += height;
@@ -320,7 +333,10 @@ impl RenderingContext {
 
     // #[instrument(level = "trace", skip(self, text, line_num, style))]
     fn print_text(&mut self, text: &str, line_num: usize, style: Style) -> Result<(), Error> {
-        self.staged.lines[line_num].push((text.to_owned(), style));
+        self.staged[line_num].push(StyledChunk {
+            str: text.to_smolstr(),
+            style,
+        });
 
         Ok(())
     }
@@ -356,29 +372,12 @@ pub type Staged = Vec<Vec<StyledChunk>>;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct StyledChunk {
-    pub str: String,
+    pub str: SmolStr,
     pub style: Style,
 }
 
 impl StyledChunk {
-    pub fn new(str: String, style: Style) -> Self {
+    pub fn new(str: SmolStr, style: Style) -> Self {
         Self { str, style }
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Cell {
-    pub color: Option<Color>,
-    pub background_color: Option<Color>,
-    pub ch: char,
-}
-
-impl Default for Cell {
-    fn default() -> Self {
-        Self {
-            color: _d(),
-            background_color: _d(),
-            ch: ' ',
-        }
     }
 }
