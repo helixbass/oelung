@@ -178,15 +178,22 @@ impl RenderingContext {
                     .iter()
                     .all(
                         |child| child.flex_grow() == Some(1.0) && child.height().is_none()
-                            || child.flex_grow() == None && child.height() == Some(1)
+                            || child.flex_grow() == None && child.height().is_some()
                     ));
+                let fixed_children_total_height =
+                    flex_column
+                        .children
+                        .iter()
+                        .fold(0, |accum, child| match child.height() {
+                            None => accum,
+                            Some(height) => accum + height,
+                        });
                 let mut num_rows_rendered = 0;
-                let num_children = flex_column.children.len();
                 for mut child in flex_column.children {
-                    let height = if child.height() == Some(1) {
-                        1
+                    let height = if let Some(height) = child.height() {
+                        height
                     } else {
-                        self.grid.height - (u16::try_from(num_children).unwrap() - 1)
+                        self.grid.height - fixed_children_total_height
                     };
                     let grid = Grid {
                         left: self.grid.left,
