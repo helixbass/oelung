@@ -99,12 +99,12 @@ impl Parse for FlexColumn {
         let smallest_allowed_column = parent_enclosing_attribute_start_column
             .as_ref()
             .map(|parent_enclosing_attribute_start_column| {
-                parent_enclosing_attribute_start_column.0
+                parent_enclosing_attribute_start_column.0 + 1
             })
             .or_else(|| {
                 parent_percent_sign_start_column
                     .as_ref()
-                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0)
+                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0 + 1)
             })
             .unwrap_or(me_percent_sign_start_column.0);
         illicit::Layer::new()
@@ -226,12 +226,10 @@ impl Parse for Cursor {
         let smallest_allowed_column = parent_enclosing_attribute_start_column
             .as_ref()
             .map(|parent_enclosing_attribute_start_column| {
-                parent_enclosing_attribute_start_column.0
+                parent_enclosing_attribute_start_column.0 + 1
             })
-            .unwrap_or_else(|| parent_percent_sign_start_column.0);
-        println!("next span pre: {:#?}", input.span().start());
+            .unwrap_or_else(|| parent_percent_sign_start_column.0 + 1);
         while input.peek(Ident) && input.span().start().column >= smallest_allowed_column {
-            println!("next span: {:#?}", input.span().start());
             let key = input.parse::<Ident>().unwrap().to_string();
             input.parse::<Token![=>]>()?;
             match &*key {
@@ -292,12 +290,12 @@ impl Parse for Text {
         let smallest_allowed_column = parent_enclosing_attribute_start_column
             .as_ref()
             .map(|parent_enclosing_attribute_start_column| {
-                parent_enclosing_attribute_start_column.0
+                parent_enclosing_attribute_start_column.0 + 1
             })
             .or_else(|| {
                 parent_percent_sign_start_column
                     .as_ref()
-                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0)
+                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0 + 1)
             })
             .unwrap_or(me_percent_sign_start_column.0);
         illicit::Layer::new()
