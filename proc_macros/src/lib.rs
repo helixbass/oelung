@@ -202,7 +202,8 @@ struct Cursor {
 
 impl Parse for Cursor {
     fn parse(input: ParseStream) -> Result<Self> {
-        let me_percent_sign_start_column = input.span().start().column;
+        // let me_percent_sign_start_column = input.span().start().column;
+        // let me_percent_sign_row = input.span().start().line;
         input.parse::<Token![%]>()?;
         let name: Ident = input.parse().unwrap();
         if name.to_string() != "Cursor" {
@@ -219,7 +220,9 @@ impl Parse for Cursor {
 
         let parent_percent_sign_start_column = illicit::expect::<ParentPercentSignStartColumn>();
         let parent_enclosing_attribute_start_column =
-            illicit::expect::<Option<ParentEnclosingAttributeStartColumn>>();
+            illicit::get::<ParentEnclosingAttributeStartColumn>().ok();
+        illicit::hide::<ParentPercentSignStartColumn>();
+        illicit::hide::<ParentEnclosingAttributeStartColumn>();
         let smallest_allowed_column = parent_enclosing_attribute_start_column
             .as_ref()
             .map(|parent_enclosing_attribute_start_column| {
