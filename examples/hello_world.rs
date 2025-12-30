@@ -20,10 +20,10 @@ fn main() -> Result<(), anyhow::Error> {
 fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
     renderer.render(soft! {
         %Text
-          text => "Hello world (hit q to quit)"
           cursor => %Cursor.Relative
             x => 0
             y => 0
+          text => "Hello world (hit q to quit)"
     })?;
 
     Ok(())

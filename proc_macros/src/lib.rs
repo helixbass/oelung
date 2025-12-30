@@ -23,21 +23,24 @@ enum Element {
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
         Ok(match input.peek(Token![%]) {
-            true => {
-                input.parse::<Token![%]>().unwrap();
-                if input.peek(custom_keywords::FlexColumn) {
-                    let name: Ident = input.parse().unwrap();
-                    assert_eq!(name.to_string(), "FlexColumn");
-                    Self::FlexColumn(input.parse()?)
-                } else if input.peek(custom_keywords::Text) {
-                    let name: Ident = input.parse().unwrap();
-                    assert_eq!(name.to_string(), "Text");
-                    Self::Text(input.parse()?)
-                } else {
-                    let component = input.parse::<LessThanBinaryExpr>()?.expr;
-                    Self::Component(component)
-                }
-            }
+            true => illicit::Layer::new()
+                .offer(MePercentSignStartColumn(input.span().start().column))
+                .offer(MePercentSignRow(input.span().start().line))
+                .enter(|| -> Result<Self> {
+                    input.parse::<Token![%]>().unwrap();
+                    if input.peek(custom_keywords::FlexColumn) {
+                        let name: Ident = input.parse().unwrap();
+                        assert_eq!(name.to_string(), "FlexColumn");
+                        Ok(Self::FlexColumn(input.parse()?))
+                    } else if input.peek(custom_keywords::Text) {
+                        let name: Ident = input.parse().unwrap();
+                        assert_eq!(name.to_string(), "Text");
+                        Ok(Self::Text(input.parse()?))
+                    } else {
+                        let component = input.parse::<LessThanBinaryExpr>()?.expr;
+                        Ok(Self::Component(component))
+                    }
+                })?,
             false => {
                 let expr = input.parse::<LessThanBinaryExpr>()?.expr;
                 Self::AlreadyComponent(expr)
@@ -76,31 +79,69 @@ impl Parse for FlexColumn {
         let mut flex_grow: Option<LitFloatOrInt> = _d();
         let mut cursor: Option<Cursor> = _d();
 
-        while input.peek(Ident) {
-            let key = input.parse::<Ident>().unwrap().to_string();
-            input.parse::<Token![=>]>()?;
-            match &*key {
-                "children" => {
-                    assert!(children.is_none(), "Already saw 'children' key");
-                    let children_content;
-                    bracketed!(children_content in input);
-                    let children = children.populate_default();
-                    while !children_content.is_empty() {
-                        children.push(children_content.parse()?);
-                        children_content.parse::<Option<Token![,]>>()?;
-                    }
+        let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
+        let me_percent_sign_row = illicit::expect::<MePercentSignRow>();
+        let parent_percent_sign_start_column = illicit::get::<ParentPercentSignStartColumn>().ok();
+        let parent_enclosing_attribute_start_column =
+            illicit::get::<ParentEnclosingAttributeStartColumn>().ok();
+        illicit::hide::<MePercentSignStartColumn>();
+        illicit::hide::<MePercentSignRow>();
+        illicit::hide::<ParentEnclosingAttributeStartColumn>();
+        let smallest_allowed_column = parent_enclosing_attribute_start_column
+            .as_ref()
+            .map(|parent_enclosing_attribute_start_column| {
+                parent_enclosing_attribute_start_column.0
+            })
+            .or_else(|| {
+                parent_percent_sign_start_column
+                    .as_ref()
+                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0)
+            })
+            .unwrap_or(me_percent_sign_start_column.0);
+        illicit::Layer::new()
+            .offer(ParentPercentSignStartColumn(me_percent_sign_start_column.0))
+            .enter(|| -> Result<()> {
+                while input.peek(Ident) && input.span().start().column >= smallest_allowed_column {
+                    let mut parse_attribute = || -> Result<()> {
+                        let key = input.parse::<Ident>().unwrap().to_string();
+                        input.parse::<Token![=>]>()?;
+                        match &*key {
+                            "children" => {
+                                assert!(children.is_none(), "Already saw 'children' key");
+                                let children_content;
+                                bracketed!(children_content in input);
+                                let children = children.populate_default();
+                                while !children_content.is_empty() {
+                                    children.push(children_content.parse()?);
+                                    children_content.parse::<Option<Token![,]>>()?;
+                                }
+                            }
+                            "flex_grow" => {
+                                assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
+                                flex_grow = Some(input.parse()?);
+                            }
+                            "cursor" => {
+                                assert!(cursor.is_none(), "Already saw 'cursor' key");
+                                cursor = Some(input.parse()?);
+                            }
+                            key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                        }
+
+                        Ok(())
+                    };
+                    if input.span().start().line > me_percent_sign_row.0 {
+                        illicit::Layer::new()
+                            .offer(ParentEnclosingAttributeStartColumn(
+                                input.span().start().column,
+                            ))
+                            .enter(parse_attribute)
+                    } else {
+                        parse_attribute()
+                    }?
                 }
-                "flex_grow" => {
-                    assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
-                    flex_grow = Some(input.parse()?);
-                }
-                "cursor" => {
-                    assert!(cursor.is_none(), "Already saw 'cursor' key");
-                    cursor = Some(input.parse()?);
-                }
-                key => return Err(input.error(format!("Unexpected key `{key}`"))),
-            }
-        }
+
+                Ok(())
+            })?;
 
         Ok(Self {
             children: children.expect("Expected `children`"),
@@ -152,6 +193,7 @@ struct Cursor {
 
 impl Parse for Cursor {
     fn parse(input: ParseStream) -> Result<Self> {
+        let me_percent_sign_start_column = input.span().start().column;
         input.parse::<Token![%]>()?;
         let name: Ident = input.parse().unwrap();
         if name.to_string() != "Cursor" {
@@ -166,7 +208,18 @@ impl Parse for Cursor {
         let mut x: Option<LitIntOrExpr> = _d();
         let mut y: Option<LitIntOrExpr> = _d();
 
-        while input.peek(Ident) {
+        let parent_percent_sign_start_column = illicit::expect::<ParentPercentSignStartColumn>();
+        let parent_enclosing_attribute_start_column =
+            illicit::expect::<Option<ParentEnclosingAttributeStartColumn>>();
+        let smallest_allowed_column = parent_enclosing_attribute_start_column
+            .as_ref()
+            .map(|parent_enclosing_attribute_start_column| {
+                parent_enclosing_attribute_start_column.0
+            })
+            .unwrap_or_else(|| parent_percent_sign_start_column.0);
+        println!("next span pre: {:#?}", input.span().start());
+        while input.peek(Ident) && input.span().start().column >= smallest_allowed_column {
+            println!("next span: {:#?}", input.span().start());
             let key = input.parse::<Ident>().unwrap().to_string();
             input.parse::<Token![=>]>()?;
             match &*key {
@@ -216,58 +269,103 @@ impl Parse for Text {
         let mut color: Option<Color> = _d();
         let mut background_color: Option<Color> = _d();
 
-        match input.peek(Ident) && input.peek2(Token![=>]) {
-            true => {
-                while input.peek(Ident) {
-                    let key = input.parse::<Ident>().unwrap().to_string();
-                    input.parse::<Token![=>]>()?;
-                    match &*key {
-                        "text" => {
-                            assert!(text.is_none(), "Already saw 'text' key");
-                            assert!(
-                                children.is_none(),
-                                "Only provide one of 'text' or 'children'"
-                            );
-                            text = Some(input.parse()?);
+        let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
+        let me_percent_sign_row = illicit::expect::<MePercentSignRow>();
+        let parent_percent_sign_start_column = illicit::get::<ParentPercentSignStartColumn>().ok();
+        let parent_enclosing_attribute_start_column =
+            illicit::get::<ParentEnclosingAttributeStartColumn>().ok();
+        illicit::hide::<MePercentSignStartColumn>();
+        illicit::hide::<MePercentSignRow>();
+        illicit::hide::<ParentEnclosingAttributeStartColumn>();
+        let smallest_allowed_column = parent_enclosing_attribute_start_column
+            .as_ref()
+            .map(|parent_enclosing_attribute_start_column| {
+                parent_enclosing_attribute_start_column.0
+            })
+            .or_else(|| {
+                parent_percent_sign_start_column
+                    .as_ref()
+                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0)
+            })
+            .unwrap_or(me_percent_sign_start_column.0);
+        illicit::Layer::new()
+            .offer(ParentPercentSignStartColumn(me_percent_sign_start_column.0))
+            .enter(|| -> Result<()> {
+                match input.peek(Ident) && input.peek2(Token![=>]) {
+                    true => {
+                        while input.peek(Ident)
+                            && input.span().start().column >= smallest_allowed_column
+                        {
+                            let mut parse_attribute = || -> Result<()> {
+                                let key = input.parse::<Ident>().unwrap().to_string();
+                                input.parse::<Token![=>]>()?;
+                                match &*key {
+                                    "text" => {
+                                        assert!(text.is_none(), "Already saw 'text' key");
+                                        assert!(
+                                            children.is_none(),
+                                            "Only provide one of 'text' or 'children'"
+                                        );
+                                        text = Some(input.parse()?);
+                                    }
+                                    "cursor" => {
+                                        assert!(cursor.is_none(), "Already saw 'cursor' key");
+                                        cursor = Some(input.parse()?);
+                                    }
+                                    "children" => {
+                                        assert!(children.is_none(), "Already saw 'children' key");
+                                        assert!(
+                                            text.is_none(),
+                                            "Only provide one of 'text' or 'children'"
+                                        );
+                                        let children_content;
+                                        bracketed!(children_content in input);
+                                        let children = children.populate_default();
+                                        while !children_content.is_empty() {
+                                            children.push(children_content.parse()?);
+                                            children_content.parse::<Option<Token![,]>>()?;
+                                        }
+                                    }
+                                    "color" => {
+                                        assert!(color.is_none(), "Already saw 'color' key");
+                                        color = Some(input.parse()?);
+                                    }
+                                    "background_color" => {
+                                        assert!(
+                                            background_color.is_none(),
+                                            "Already saw 'background_color' key"
+                                        );
+                                        background_color = Some(input.parse()?);
+                                    }
+                                    key => {
+                                        return Err(input.error(format!("Unexpected key `{key}`")))
+                                    }
+                                }
+
+                                Ok(())
+                            };
+                            if input.span().start().line > me_percent_sign_row.0 {
+                                illicit::Layer::new()
+                                    .offer(ParentEnclosingAttributeStartColumn(
+                                        input.span().start().column,
+                                    ))
+                                    .enter(parse_attribute)
+                            } else {
+                                parse_attribute()
+                            }?
                         }
-                        "cursor" => {
-                            assert!(cursor.is_none(), "Already saw 'cursor' key");
-                            cursor = Some(input.parse()?);
-                        }
-                        "children" => {
-                            assert!(children.is_none(), "Already saw 'children' key");
-                            assert!(text.is_none(), "Only provide one of 'text' or 'children'");
-                            let children_content;
-                            bracketed!(children_content in input);
-                            let children = children.populate_default();
-                            while !children_content.is_empty() {
-                                children.push(children_content.parse()?);
-                                children_content.parse::<Option<Token![,]>>()?;
-                            }
-                        }
-                        "color" => {
-                            assert!(color.is_none(), "Already saw 'color' key");
-                            color = Some(input.parse()?);
-                        }
-                        "background_color" => {
-                            assert!(
-                                background_color.is_none(),
-                                "Already saw 'background_color' key"
-                            );
-                            background_color = Some(input.parse()?);
-                        }
-                        key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                    }
+                    false => {
+                        text = Some(input.parse()?);
                     }
                 }
-            }
-            false => {
-                text = Some(input.parse()?);
-            }
-        }
 
-        if children.is_none() {
-            children = Some(vec![TextChild::Text(text.expect("Expected `text`"))]);
-        }
+                if children.is_none() {
+                    children = Some(vec![TextChild::Text(text.expect("Expected `text`"))]);
+                }
+
+                Ok(())
+            })?;
 
         Ok(Self {
             children: children.unwrap(),
@@ -458,3 +556,15 @@ pub fn soft(input: TokenStream) -> TokenStream {
     }}
     .into()
 }
+
+#[derive(Debug)]
+struct MePercentSignRow(usize);
+
+#[derive(Debug)]
+struct MePercentSignStartColumn(usize);
+
+#[derive(Debug)]
+struct ParentPercentSignStartColumn(usize);
+
+#[derive(Debug)]
+struct ParentEnclosingAttributeStartColumn(usize);
