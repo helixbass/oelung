@@ -60,10 +60,6 @@ impl Renderer {
             .stdout
             .queue(cursor::Hide)
             .map_err(|_| Error::Crossterm("hide failed".into()))?;
-        self.take_over_screen_guard
-            .stdout
-            .queue(cursor::MoveTo(0, 0))
-            .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
         let style = Style::default();
         let grid = Grid {
@@ -133,19 +129,20 @@ impl Renderer {
             Some(1) => 0,
             _ => unreachable!(),
         }];
-        // let buffer: Vec<u8> = Vec::with_capacity(self.size.height * self.size.width);
-        let mut buffer: Vec<u8> = _d();
         let prev_staged = self
             .last_rendered_grid_index
             .map(|last_rendered_grid_index| &self.grids[last_rendered_grid_index]);
         for (row_index, row) in staged.iter().enumerate() {
+            self.take_over_screen_guard
+                .stdout
+                .queue(cursor::MoveTo(0, u16::try_from(row_index).unwrap()))
+                .map_err(|_| Error::Crossterm("move to failed".into()))?;
+
             let prev_staged_row = prev_staged.map(|prev_staged| &prev_staged[row_index]);
-            let mut num_bytes_printed_in_row = 0;
             let mut is_still_matching_prev_staged_row = prev_staged_row.is_some();
             for (styled_chunk_index, styled_chunk) in row.into_iter().enumerate() {
                 if is_still_matching_prev_staged_row {
                     if prev_staged_row.unwrap().get(styled_chunk_index) == Some(styled_chunk) {
-                        num_bytes_printed_in_row += styled_chunk.str.len();
                         continue;
                     } else {
                         is_still_matching_prev_staged_row = false;
@@ -154,39 +151,38 @@ impl Renderer {
 
                 match styled_chunk.style.color {
                     Some(color) => {
-                        buffer
+                        self.take_over_screen_guard
+                            .stdout
                             .queue(SetForegroundColor(color))
                             .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
                     }
                     None => {
-                        buffer
+                        self.take_over_screen_guard
+                            .stdout
                             .queue(SetForegroundColor(Color::Reset))
                             .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
                     }
                 }
                 match styled_chunk.style.background_color {
                     Some(background_color) => {
-                        buffer
+                        self.take_over_screen_guard
+                            .stdout
                             .queue(SetBackgroundColor(background_color))
                             .map_err(|_| Error::Crossterm("set background color failed".into()))?;
                     }
                     None => {
-                        buffer
+                        self.take_over_screen_guard
+                            .stdout
                             .queue(SetBackgroundColor(Color::Reset))
                             .map_err(|_| Error::Crossterm("set background color failed".into()))?;
                     }
                 }
-                buffer
+                self.take_over_screen_guard
+                    .stdout
                     .queue(Print(styled_chunk.str.clone()))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
-
-                num_bytes_printed_in_row += styled_chunk.str.len();
             }
         }
-        self.take_over_screen_guard
-            .stdout
-            .write_all(&buffer)
-            .map_err(|_| Error::Crossterm("write failed".into()))?;
 
         Ok(())
     }
