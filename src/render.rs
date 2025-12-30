@@ -8,6 +8,7 @@ use crossterm::{
     QueueableCommand,
 };
 use squalid::_d;
+use tracing::instrument;
 
 use crate::{
     size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size, Style,
@@ -23,6 +24,7 @@ pub struct Renderer {
 }
 
 impl Renderer {
+    #[instrument(level = "trace")]
     pub fn try_new() -> Result<Self, Error> {
         Ok(Self {
             take_over_screen_guard: take_over_screen()?,
@@ -33,6 +35,7 @@ impl Renderer {
         })
     }
 
+    #[instrument(level = "trace", skip(self, component))]
     pub fn render<'a>(&mut self, component: Component<'a>) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
         self.size = size()?;
@@ -95,6 +98,7 @@ impl Renderer {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self))]
     fn render_staged(&mut self) -> Result<(), Error> {
         let staged = self.staged_this_render.as_ref().unwrap();
         for (row_index, row) in staged.lines.iter().enumerate() {
@@ -158,6 +162,7 @@ impl RenderingContext {
         }
     }
 
+    #[instrument(level = "trace", skip(self, component))]
     pub fn render(&mut self, component: Component) -> Result<(), Error> {
         match component {
             Component::Text(text) => {
@@ -237,6 +242,7 @@ impl RenderingContext {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self, text, line_num, style))]
     pub fn render_text(
         &mut self,
         text: Text,
@@ -277,12 +283,14 @@ impl RenderingContext {
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self, text, line_num, style))]
     fn print_text(&mut self, text: &str, line_num: usize, style: Style) -> Result<(), Error> {
         self.staged.lines[line_num].push((text.to_owned(), style));
 
         Ok(())
     }
 
+    #[instrument(level = "trace", skip(self, cursor))]
     fn render_cursor(&mut self, cursor: Cursor) -> Result<(), Error> {
         if self.rendered_cursor_position.is_some() {
             return Err(Error::RenderedCursorMoreThanOnce);

@@ -7,9 +7,11 @@ use crossterm::{
     },
 };
 use squalid::EverythingExt;
+use tracing::instrument;
 
 use crate::Error;
 
+#[instrument(level = "trace")]
 pub fn take_over_screen() -> Result<TakeOverScreenGuard, Error> {
     enable_raw_mode().map_err(|_| Error::Crossterm("enable raw mode failed".into()))?;
     execute!(stdout(), EnterAlternateScreen)
@@ -30,6 +32,7 @@ impl Drop for TakeOverScreenGuard {
     }
 }
 
+#[instrument(level = "trace")]
 pub fn size() -> Result<Size, Error> {
     Ok(terminal::size()
         .map_err(|_| Error::Crossterm("size failed".into()))?
