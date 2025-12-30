@@ -251,7 +251,7 @@ impl RenderingContext {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self, text, line_num, style))]
+    // #[instrument(level = "trace", skip(self, text, line_num, style))]
     pub fn render_text(
         &mut self,
         text: Text,
@@ -292,7 +292,7 @@ impl RenderingContext {
         Ok(())
     }
 
-    #[instrument(level = "trace", skip(self, text, line_num, style))]
+    // #[instrument(level = "trace", skip(self, text, line_num, style))]
     fn print_text(&mut self, text: &str, line_num: usize, style: Style) -> Result<(), Error> {
         self.staged.lines[line_num].push((text.to_owned(), style));
 
