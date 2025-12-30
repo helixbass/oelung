@@ -8,7 +8,7 @@ use crossterm::{
     QueueableCommand,
 };
 use squalid::_d;
-use tracing::{instrument, trace_span};
+use tracing::instrument;
 
 use crate::{
     size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size, Style,
@@ -104,9 +104,7 @@ impl Renderer {
         // let buffer: Vec<u8> = Vec::with_capacity(self.size.height * self.size.width);
         let mut buffer: Vec<u8> = _d();
         for (row_index, row) in staged.lines.iter().enumerate() {
-            let row_guard = trace_span!("row").entered();
             for (styled_chunk, style) in row {
-                let chunk_guard = trace_span!("queueing chunk").entered();
                 match style.color {
                     Some(color) => {
                         buffer
@@ -134,7 +132,6 @@ impl Renderer {
                 buffer
                     .queue(Print(styled_chunk))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
-                drop(chunk_guard);
             }
 
             if row_index < staged.lines.len() - 1 {
@@ -142,7 +139,6 @@ impl Renderer {
                     .queue(Print("\r\n"))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
             }
-            drop(row_guard);
         }
         self.stdout
             .write_all(&buffer)
