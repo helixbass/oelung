@@ -22,25 +22,34 @@ enum Element {
 
 impl Parse for Element {
     fn parse(input: ParseStream) -> Result<Self> {
+        let me_percent_sign_start_column = input.span().start().column;
+        let me_percent_sign_row = input.span().start().line;
         Ok(match input.peek(Token![%]) {
-            true => illicit::Layer::new()
-                .offer(MePercentSignStartColumn(input.span().start().column))
-                .offer(MePercentSignRow(input.span().start().line))
-                .enter(|| -> Result<Self> {
-                    input.parse::<Token![%]>().unwrap();
-                    if input.peek(custom_keywords::FlexColumn) {
-                        let name: Ident = input.parse().unwrap();
-                        assert_eq!(name.to_string(), "FlexColumn");
-                        Ok(Self::FlexColumn(input.parse()?))
-                    } else if input.peek(custom_keywords::Text) {
-                        let name: Ident = input.parse().unwrap();
-                        assert_eq!(name.to_string(), "Text");
-                        Ok(Self::Text(input.parse()?))
-                    } else {
-                        let component = input.parse::<LessThanBinaryExpr>()?.expr;
-                        Ok(Self::Component(component))
-                    }
-                })?,
+            true => {
+                input.parse::<Token![%]>().unwrap();
+                if input.peek(custom_keywords::FlexColumn) {
+                    let name: Ident = input.parse().unwrap();
+                    assert_eq!(name.to_string(), "FlexColumn");
+                    Self::FlexColumn(
+                        illicit::Layer::new()
+                            .offer(MePercentSignStartColumn(me_percent_sign_start_column))
+                            .offer(MePercentSignRow(me_percent_sign_row))
+                            .enter(|| -> Result<FlexColumn> { Ok(input.parse()?) })?,
+                    )
+                } else if input.peek(custom_keywords::Text) {
+                    let name: Ident = input.parse().unwrap();
+                    assert_eq!(name.to_string(), "Text");
+                    Self::Text(
+                        illicit::Layer::new()
+                            .offer(MePercentSignStartColumn(me_percent_sign_start_column))
+                            .offer(MePercentSignRow(me_percent_sign_row))
+                            .enter(|| -> Result<Text> { Ok(input.parse()?) })?,
+                    )
+                } else {
+                    let component = input.parse::<LessThanBinaryExpr>()?.expr;
+                    Self::Component(component)
+                }
+            }
             false => {
                 let expr = input.parse::<LessThanBinaryExpr>()?.expr;
                 Self::AlreadyComponent(expr)
