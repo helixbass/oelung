@@ -8,7 +8,7 @@ use crossterm::{
     QueueableCommand,
 };
 use squalid::_d;
-use tracing::instrument;
+use tracing::{instrument, trace_span};
 
 use crate::{
     size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size, Style,
@@ -101,43 +101,52 @@ impl Renderer {
     #[instrument(level = "trace", skip(self))]
     fn render_staged(&mut self) -> Result<(), Error> {
         let staged = self.staged_this_render.as_ref().unwrap();
+        // let buffer: Vec<u8> = Vec::with_capacity(self.size.height * self.size.width);
+        let mut buffer: Vec<u8> = _d();
         for (row_index, row) in staged.lines.iter().enumerate() {
+            let row_guard = trace_span!("row").entered();
             for (styled_chunk, style) in row {
+                let chunk_guard = trace_span!("queueing chunk").entered();
                 match style.color {
                     Some(color) => {
-                        self.stdout
+                        buffer
                             .queue(SetForegroundColor(color))
                             .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
                     }
                     None => {
-                        self.stdout
+                        buffer
                             .queue(SetForegroundColor(Color::Reset))
                             .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
                     }
                 }
                 match style.background_color {
                     Some(background_color) => {
-                        self.stdout
+                        buffer
                             .queue(SetBackgroundColor(background_color))
                             .map_err(|_| Error::Crossterm("set background color failed".into()))?;
                     }
                     None => {
-                        self.stdout
+                        buffer
                             .queue(SetBackgroundColor(Color::Reset))
                             .map_err(|_| Error::Crossterm("set background color failed".into()))?;
                     }
                 }
-                self.stdout
+                buffer
                     .queue(Print(styled_chunk))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
+                drop(chunk_guard);
             }
 
             if row_index < staged.lines.len() - 1 {
-                self.stdout
+                buffer
                     .queue(Print("\r\n"))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
             }
+            drop(row_guard);
         }
+        self.stdout
+            .write_all(&buffer)
+            .map_err(|_| Error::Crossterm("write failed".into()))?;
 
         Ok(())
     }
