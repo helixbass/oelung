@@ -1,4 +1,4 @@
-use std::cell::UnsafeCell;
+use std::cell::{Cell, UnsafeCell};
 use std::io::Write;
 use std::iter;
 use std::mem;
@@ -436,35 +436,34 @@ impl StyledChunk {
 
 #[derive(Default)]
 struct ComponentHolder<'a> {
-    store: Vec<Vec<Component<'a>>>,
-    len: usize,
+    store: UnsafeCell<Vec<Vec<Component<'a>>>>,
+    len: Cell<usize>,
 }
 
 impl<'a> ComponentHolder<'a> {
     pub const PER_ROW: usize = 20;
 
     pub fn push(&self, component: Component<'a>) {
-        let store_index = self.len / Self::PER_ROW;
-        let self_ptr = self as *const Self as *mut Self;
+        let store_index = self.len.get() / Self::PER_ROW;
         // SAFETY: this should be fine because we're making sure
         // that nothing in the store moves after it's been added,
         // and the only thing that holds references to us is
         // `.get_most_recent()`
         unsafe {
-            let self_: &mut Self = &mut *self_ptr;
-            if self_.len % Self::PER_ROW == 0 {
-                self_.store.push(Vec::with_capacity(Self::PER_ROW));
+            if self.len.get() % Self::PER_ROW == 0 {
+                self.store_mut().push(Vec::with_capacity(Self::PER_ROW));
             }
-            self_.store[store_index].push(component);
-            self_.len += 1;
+            self.store_mut()[store_index].push(component);
         }
+        self.len.set(self.len.get() + 1);
     }
 
     pub fn get_most_recent(&self) -> &Component<'a> {
-        assert!(self.len > 0);
-        let store_index = (self.len - 1) / Self::PER_ROW;
-        let index_in_row = (self.len - 1) % Self::PER_ROW;
-        &self.store[store_index][index_in_row]
+        let len = self.len.get();
+        assert!(len > 0);
+        let store_index = (len - 1) / Self::PER_ROW;
+        let index_in_row = (len - 1) % Self::PER_ROW;
+        unsafe { &self.store_ref()[store_index][index_in_row] }
     }
 
     pub fn render_most_recent_and_push(&self, grid: Grid) -> Result<(), Error> {
@@ -480,5 +479,13 @@ impl<'a> ComponentHolder<'a> {
         );
 
         Ok(())
+    }
+
+    unsafe fn store_ref(&self) -> &Vec<Vec<Component<'a>>> {
+        unsafe { &*self.store.get() }
+    }
+
+    unsafe fn store_mut(&self) -> &mut Vec<Vec<Component<'a>>> {
+        unsafe { &mut *self.store.get() }
     }
 }
