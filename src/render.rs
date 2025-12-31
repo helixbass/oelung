@@ -54,10 +54,6 @@ impl Renderer {
 
         self.take_over_screen_guard
             .stdout
-            .queue(Clear(ClearType::All))
-            .map_err(|_| Error::Crossterm("clear failed".into()))?;
-        self.take_over_screen_guard
-            .stdout
             .queue(cursor::Hide)
             .map_err(|_| Error::Crossterm("hide failed".into()))?;
 
