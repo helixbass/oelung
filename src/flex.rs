@@ -1,30 +1,30 @@
 use crate::{Component, ComponentInterface, Cursor, Error, Grid};
 
-pub struct FlexColumn<'a, 'b> {
-    pub children: Vec<Component<'a, 'b>>,
+pub struct FlexColumn<'a> {
+    pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
     pub cursor: Option<Cursor>,
 }
 
-impl<'a, 'b> ComponentInterface<'a> for FlexColumn<'a, 'b> {
+impl<'a> ComponentInterface for FlexColumn<'a> {
     fn flex_grow(&self) -> Option<f64> {
         self.flex_grow
     }
 
-    fn render(&self, _grid: Grid) -> Result<Component<'a, 'static>, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         unreachable!()
     }
 }
 
 #[derive(Default)]
-pub struct FlexColumnBuilder<'a, 'b> {
-    pub children: Vec<Component<'a, 'b>>,
+pub struct FlexColumnBuilder<'a> {
+    pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
     pub cursor: Option<Cursor>,
 }
 
-impl<'a, 'b> FlexColumnBuilder<'a, 'b> {
-    pub fn child(mut self, child: impl Into<Component<'a, 'b>>) -> Self {
+impl<'a> FlexColumnBuilder<'a> {
+    pub fn child(mut self, child: impl Into<Component<'a>>) -> Self {
         self.children.push(child.into());
         self
     }
@@ -39,7 +39,7 @@ impl<'a, 'b> FlexColumnBuilder<'a, 'b> {
         self
     }
 
-    pub fn build(self) -> Result<FlexColumn<'a, 'b>, Error> {
+    pub fn build(self) -> Result<FlexColumn<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::FlexColumnBuilder("empty children".into()));
         }

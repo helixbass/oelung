@@ -1,20 +1,20 @@
 use crate::{FlexColumn, Grid, Text};
 
-pub enum Component<'a, 'b> {
-    Text(Text<'a, 'b>),
-    FlexColumn(FlexColumn<'a, 'b>),
-    Component(Box<dyn ComponentInterface<'a> + 'b>),
+pub enum Component<'a> {
+    Text(Text<'a>),
+    FlexColumn(FlexColumn<'a>),
+    Component(Box<dyn ComponentInterface + 'a>),
 }
 
-impl<'a, 'b> Component<'a, 'b> {
-    pub fn into_component(self) -> Box<dyn ComponentInterface<'a> + 'b> {
+impl<'a> Component<'a> {
+    pub fn into_component(self) -> Box<dyn ComponentInterface + 'a> {
         match self {
             Self::Component(component) => component,
             _ => panic!("expected component"),
         }
     }
 
-    pub fn as_component(&self) -> &Box<dyn ComponentInterface<'a> + 'b> {
+    pub fn as_component(&self) -> &Box<dyn ComponentInterface + 'a> {
         match self {
             Self::Component(component) => component,
             _ => panic!("expected component"),
@@ -22,19 +22,19 @@ impl<'a, 'b> Component<'a, 'b> {
     }
 }
 
-impl<'a, 'b> From<Text<'a, 'b>> for Component<'a, 'b> {
-    fn from(value: Text<'a, 'b>) -> Self {
+impl<'a> From<Text<'a>> for Component<'a> {
+    fn from(value: Text<'a>) -> Self {
         Self::Text(value)
     }
 }
 
-impl<'a, 'b> From<FlexColumn<'a, 'b>> for Component<'a, 'b> {
-    fn from(value: FlexColumn<'a, 'b>) -> Self {
+impl<'a> From<FlexColumn<'a>> for Component<'a> {
+    fn from(value: FlexColumn<'a>) -> Self {
         Self::FlexColumn(value)
     }
 }
 
-pub trait ComponentInterface<'a> {
+pub trait ComponentInterface {
     fn flex_grow(&self) -> Option<f64> {
         None
     }
@@ -43,10 +43,10 @@ pub trait ComponentInterface<'a> {
         None
     }
 
-    fn render(&self, grid: Grid) -> Result<Component<'a, 'static>, anyhow::Error>;
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error>;
 }
 
-impl<'a, 'b> ComponentInterface<'a> for Component<'a, 'b> {
+impl<'a> ComponentInterface for Component<'a> {
     fn flex_grow(&self) -> Option<f64> {
         match self {
             Self::Text(text) => text.flex_grow(),
@@ -63,7 +63,7 @@ impl<'a, 'b> ComponentInterface<'a> for Component<'a, 'b> {
         }
     }
 
-    fn render(&self, grid: Grid) -> Result<Component<'a, 'static>, anyhow::Error> {
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         match self {
             Self::Text(text) => text.render(grid),
             Self::FlexColumn(flex_column) => flex_column.render(grid),

@@ -49,7 +49,7 @@ impl Renderer {
     }
 
     #[instrument(level = "trace", skip(self, component))]
-    pub fn render(&mut self, component: Component) -> Result<(), Error> {
+    pub fn render<'a>(&mut self, component: Component<'a>) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
 
         self.take_over_screen_guard
@@ -64,24 +64,19 @@ impl Renderer {
             width: self.size.width,
             height: self.size.height,
         };
-        let mut maybe_child_component = if matches!(component, Component::Component(_)) {
-            Some(component.as_component().render(grid)?)
-        } else {
-            None
-        };
-        while matches!(maybe_child_component, Some(Component::Component(_))) {
-            maybe_child_component =
-                Some(maybe_child_component.unwrap().as_component().render(grid)?);
+
+        let component_holder: ComponentHolder<'a> = ComponentHolder::default();
+        component_holder.push(component);
+        while matches!(component_holder.get_most_recent(), Component::Component(_)) {
+            let rendered = component_holder
+                .get_most_recent()
+                .as_component()
+                .render(grid)?;
+            component_holder.push(rendered);
         }
+
         let mut rendering_context = RenderingContext::new(grid, style);
-        match maybe_child_component {
-            Some(child_component) => {
-                rendering_context.render(child_component)?;
-            }
-            None => {
-                rendering_context.render(component)?;
-            }
-        }
+        rendering_context.render(component_holder.get_most_recent())?;
         let RenderingContext {
             staged,
             rendered_cursor_position,
@@ -252,7 +247,7 @@ impl RenderingContext {
     }
 
     #[instrument(level = "trace", skip(self, component))]
-    pub fn render(&mut self, component: Component) -> Result<(), Error> {
+    pub fn render<'a>(&mut self, component: &Component<'a>) -> Result<(), Error> {
         match component {
             Component::Text(text) => {
                 self.staged.push(_d());
@@ -283,7 +278,7 @@ impl RenderingContext {
                             Some(height) => accum + height,
                         });
                 let mut num_rows_rendered = 0;
-                for child in flex_column.children {
+                for child in &flex_column.children {
                     let height = if let Some(height) = child.height() {
                         height
                     } else {
@@ -295,24 +290,22 @@ impl RenderingContext {
                         width: self.grid.width,
                         height,
                     };
-                    let mut maybe_child_child = if matches!(&child, Component::Component(_)) {
-                        Some(child.as_component().render(grid)?)
-                    } else {
-                        None
-                    };
-                    while matches!(maybe_child_child, Some(Component::Component(_))) {
-                        maybe_child_child =
-                            Some(maybe_child_child.unwrap().into_component().render(grid)?);
-                    }
                     let mut rendering_context = RenderingContext::new(grid, self.style);
-                    match maybe_child_child {
-                        Some(child_child) => {
-                            rendering_context.render(child_child)?;
+                    if matches!(child, Component::Component(_)) {
+                        let component_holder: ComponentHolder<'a> = _d();
+                        component_holder.push(child.as_component().render(grid)?);
+                        while matches!(component_holder.get_most_recent(), Component::Component(_))
+                        {
+                            let rendered = component_holder
+                                .get_most_recent()
+                                .as_component()
+                                .render(grid)?;
+                            component_holder.push(rendered);
                         }
-                        None => {
-                            rendering_context.render(child)?;
-                        }
-                    }
+                        rendering_context.render(component_holder.get_most_recent())?;
+                    } else {
+                        rendering_context.render(child)?;
+                    };
                     let RenderingContext {
                         staged,
                         rendered_cursor_position,
@@ -344,9 +337,9 @@ impl RenderingContext {
     }
 
     // #[instrument(level = "trace", skip(self, text, line_num, style))]
-    pub fn render_text(
+    pub fn render_text<'a>(
         &mut self,
-        text: Text,
+        text: &Text<'a>,
         line_num: usize,
         mut style: Style,
     ) -> Result<(), Error> {
@@ -359,20 +352,35 @@ impl RenderingContext {
             }
         }
 
-        for child in text.children {
+        for child in &text.children {
             match child {
-                TextChild::Text(text) => self.print_text(&text, line_num, style)?,
-                TextChild::Nested(text) => self.render_text(*text, line_num, style)?,
+                TextChild::Text(text) => self.print_text(text, line_num, style)?,
+                TextChild::Nested(text) => self.render_text(text, line_num, style)?,
                 TextChild::NestedComponent(component) => {
-                    let mut rendered = component.render(self.grid)?;
-                    while matches!(rendered, Component::Component(_)) {
-                        rendered = rendered.into_component().render(self.grid)?;
+                    let rendered = component.render(self.grid)?;
+                    if matches!(&rendered, Component::Component(_)) {
+                        let component_holder: ComponentHolder<'a> = _d();
+                        component_holder.push(rendered);
+                        while matches!(component_holder.get_most_recent(), Component::Component(_))
+                        {
+                            let rendered = component_holder
+                                .get_most_recent()
+                                .as_component()
+                                .render(self.grid)?;
+                            component_holder.push(rendered);
+                        }
+                        let rendered = match component_holder.get_most_recent() {
+                            Component::Text(rendered) => rendered,
+                            _ => return Err(Error::RenderedNonTextChildInText),
+                        };
+                        self.render_text(rendered, line_num, style)?;
+                    } else {
+                        let rendered = match rendered {
+                            Component::Text(rendered) => rendered,
+                            _ => return Err(Error::RenderedNonTextChildInText),
+                        };
+                        self.render_text(&rendered, line_num, style)?;
                     }
-                    let rendered = match rendered {
-                        Component::Text(rendered) => rendered,
-                        _ => return Err(Error::RenderedNonTextChildInText),
-                    };
-                    self.render_text(rendered, line_num, style)?;
                 }
             }
         }
@@ -432,5 +440,39 @@ pub struct StyledChunk {
 impl StyledChunk {
     pub fn new(str: SmolStr, style: Style) -> Self {
         Self { str, style }
+    }
+}
+
+#[derive(Default)]
+pub struct ComponentHolder<'a> {
+    store: Vec<Vec<Component<'a>>>,
+    len: usize,
+}
+
+impl<'a> ComponentHolder<'a> {
+    pub const PER_ROW: usize = 20;
+
+    pub fn push(&self, component: Component<'a>) {
+        let store_index = self.len / Self::PER_ROW;
+        let self_ptr = self as *const Self as *mut Self;
+        // SAFETY: this should be fine because we're making sure
+        // that nothing in the store moves after it's been added,
+        // and the only thing that holds references to us is
+        // `.get_most_recent()`
+        unsafe {
+            let self_: &mut Self = &mut *self_ptr;
+            if self_.len % Self::PER_ROW == 0 {
+                self_.store.push(Vec::with_capacity(Self::PER_ROW));
+            }
+            self_.store[store_index].push(component);
+            self_.len += 1;
+        }
+    }
+
+    pub fn get_most_recent(&self) -> &Component<'a> {
+        assert!(self.len > 0);
+        let store_index = (self.len - 1) / Self::PER_ROW;
+        let index_in_row = (self.len - 1) % Self::PER_ROW;
+        &self.store[store_index][index_in_row]
     }
 }

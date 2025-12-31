@@ -7,31 +7,31 @@ use smol_str::{SmolStr, ToSmolStr};
 
 use crate::{Component, ComponentInterface, Cursor, Error, Grid, Style, StyleBuilder};
 
-pub struct Text<'a, 'b> {
-    pub children: TextChildren<'a, 'b>,
+pub struct Text<'a> {
+    pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
     pub style: Option<Style>,
 }
 
-impl<'a, 'b> ComponentInterface<'a> for Text<'a, 'b> {
+impl<'a> ComponentInterface for Text<'a> {
     fn height(&self) -> Option<u16> {
         Some(1)
     }
 
-    fn render(&self, _grid: Grid) -> Result<Component<'a, 'static>, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         unreachable!()
     }
 }
 
 #[derive(Default)]
-pub struct TextBuilder<'a, 'b> {
-    pub children: TextChildren<'a, 'b>,
+pub struct TextBuilder<'a> {
+    pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
     pub color: Option<Color>,
     pub background_color: Option<Color>,
 }
 
-impl<'a, 'b> TextBuilder<'a, 'b> {
+impl<'a> TextBuilder<'a> {
     pub fn text_child(mut self, child: impl Display) -> Self {
         self.children.push(child.to_smolstr().into());
         self
@@ -42,12 +42,12 @@ impl<'a, 'b> TextBuilder<'a, 'b> {
         self
     }
 
-    pub fn nested_child(mut self, child: Text<'a, 'b>) -> Self {
+    pub fn nested_child(mut self, child: Text<'a>) -> Self {
         self.children.push(child.into());
         self
     }
 
-    pub fn nested_component_child(mut self, child: Box<dyn ComponentInterface<'a> + 'b>) -> Self {
+    pub fn nested_component_child(mut self, child: Box<dyn ComponentInterface + 'a>) -> Self {
         self.children.push(TextChild::NestedComponent(child));
         self
     }
@@ -62,7 +62,7 @@ impl<'a, 'b> TextBuilder<'a, 'b> {
         self
     }
 
-    pub fn build(self) -> Result<Text<'a, 'b>, Error> {
+    pub fn build(self) -> Result<Text<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::TextBuilder("empty children".into()));
         }
@@ -83,21 +83,21 @@ impl<'a, 'b> TextBuilder<'a, 'b> {
     }
 }
 
-pub type TextChildren<'a, 'b> = SmallVec<[TextChild<'a, 'b>; 10]>;
+pub type TextChildren<'a> = SmallVec<[TextChild<'a>; 10]>;
 
-pub enum TextChild<'a, 'b> {
-    Nested(Box<Text<'a, 'b>>),
-    NestedComponent(Box<dyn ComponentInterface<'a> + 'b>),
+pub enum TextChild<'a> {
+    Nested(Box<Text<'a>>),
+    NestedComponent(Box<dyn ComponentInterface + 'a>),
     Text(SmolStr),
 }
 
-impl<'a, 'b> From<Text<'a, 'b>> for TextChild<'a, 'b> {
-    fn from(value: Text<'a, 'b>) -> Self {
+impl<'a> From<Text<'a>> for TextChild<'a> {
+    fn from(value: Text<'a>) -> Self {
         Self::Nested(Box::new(value))
     }
 }
 
-impl<'a, 'b> From<SmolStr> for TextChild<'a, 'b> {
+impl<'a> From<SmolStr> for TextChild<'a> {
     fn from(value: SmolStr) -> Self {
         Self::Text(value)
     }

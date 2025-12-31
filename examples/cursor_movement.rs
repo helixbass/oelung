@@ -127,7 +127,7 @@ impl<'a> TextArea<'a> {
     }
 }
 
-impl<'a> ComponentInterface<'static> for TextArea<'a> {
+impl<'a> ComponentInterface<'static, 'static> for TextArea<'a> {
     fn render(&self, grid: Grid) -> Result<Component<'static, 'static>, anyhow::Error> {
         self.last_rendered_text_area_grid.set(Some(grid));
         let mut flex_column = FlexColumnBuilder::default();
@@ -164,7 +164,7 @@ impl StatusBar {
     }
 }
 
-impl ComponentInterface<'static> for StatusBar {
+impl ComponentInterface<'static, 'static> for StatusBar {
     fn render(&self, _grid: Grid) -> Result<Component<'static, 'static>, anyhow::Error> {
         Ok(soft! {
           %Text
