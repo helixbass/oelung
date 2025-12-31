@@ -50,8 +50,8 @@ impl StatusBar {
     }
 }
 
-impl ComponentInterface for StatusBar {
-    fn render<'a>(&self, _grid: Grid) -> Result<Component<'a>, anyhow::Error> {
+impl ComponentInterface<'static> for StatusBar {
+    fn render(&self, _grid: Grid) -> Result<Component<'static>, anyhow::Error> {
         Ok(soft! {
           %Text
             children => [
