@@ -127,8 +127,8 @@ impl<'a> TextArea<'a> {
     }
 }
 
-impl<'a> ComponentInterface<'static, 'static> for TextArea<'a> {
-    fn render(&self, grid: Grid) -> Result<Component<'static, 'static>, anyhow::Error> {
+impl<'a> ComponentInterface for TextArea<'a> {
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         self.last_rendered_text_area_grid.set(Some(grid));
         let mut flex_column = FlexColumnBuilder::default();
         for line in self.lines {
@@ -164,8 +164,8 @@ impl StatusBar {
     }
 }
 
-impl ComponentInterface<'static, 'static> for StatusBar {
-    fn render(&self, _grid: Grid) -> Result<Component<'static, 'static>, anyhow::Error> {
+impl ComponentInterface for StatusBar {
+    fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         Ok(soft! {
           %Text
             color => Ansi(182)
