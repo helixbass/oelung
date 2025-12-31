@@ -95,51 +95,14 @@ fn render_screen<'a>(
         / f64::from(u32::try_from(lines.len()).unwrap()))
         * 100.0) as u16;
 
-    // renderer.render(soft! {
-    //   %FlexColumn
-    //     children => [
-    //       %TextArea::new(lines, cursor_position, last_rendered_text_area_grid)
-    //       %StatusBar::new(current_percent, cursor_position.column)
-    //       %Text "Hit q to quit. Use j/k/h/l to move around the text area."
-    //     ]
-    // })?;
-    // let box_: Box<dyn ComponentInterface<'a> + 'a> =
-    //     Box::new(StatusBar::new(current_percent, cursor_position.column));
-    let box_: Box<dyn ComponentInterface<'static> + 'static> =
-        Box::new(StatusBar::new(current_percent, cursor_position.column));
-    let flex_column = oelung::FlexColumn {
-        children: vec![
-            Component::Component(Box::new(TextArea::new(
-                lines,
-                cursor_position,
-                last_rendered_text_area_grid,
-            ))),
-            // Component::Component(Box::new(StatusBar::new(
-            //     current_percent,
-            //     cursor_position.column,
-            // ))),
-            Component::Component(box_),
-            // Component::Text(
-            //     Text "Hit q to quit. Use j/k/h/l to move around the text area."
-            // )
-        ],
-        flex_grow: None,
-        cursor: None,
-    };
-    renderer.render(Component::FlexColumn(flex_column));
-    // renderer.render(Component::FlexColumn(
-    //     oelung::FlexColumnBuilder::default()
-    //         .child(Component::Component(Box::new(TextArea::new(
-    //             lines,
-    //             cursor_position,
-    //             last_rendered_text_area_grid,
-    //         ))))
-    //         .child(Component::Component(Box::new(StatusBar::new(
-    //             current_percent,
-    //             cursor_position.column,
-    //         ))))
-    //         .build()?,
-    // ));
+    renderer.render(soft! {
+      %FlexColumn
+        children => [
+          %TextArea::new(lines, cursor_position, last_rendered_text_area_grid)
+          %StatusBar::new(current_percent, cursor_position.column)
+          %Text "Hit q to quit. Use j/k/h/l to move around the text area."
+        ]
+    })?;
 
     Ok(())
 }
