@@ -4,6 +4,7 @@ pub enum Component<'a> {
     Text(Text<'a>),
     FlexColumn(FlexColumn<'a>),
     Component(Box<dyn ComponentInterface + 'a>),
+    ComponentThatRendersStuffThatOutlivesIt(Box<dyn IRenderStuffThatOutlivesMe<'a>>),
 }
 
 impl<'a> Component<'a> {
@@ -44,6 +45,13 @@ pub trait ComponentInterface {
     }
 
     fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error>;
+
+    fn maybe_render_stuff_that_outlives_me<'a>(
+        &self,
+        _grid: Grid,
+    ) -> Option<Result<Component<'a>, anyhow::Error>> {
+        None
+    }
 }
 
 impl<'a> ComponentInterface for Component<'a> {
@@ -70,4 +78,8 @@ impl<'a> ComponentInterface for Component<'a> {
             Self::Component(component) => component.render(grid),
         }
     }
+}
+
+pub trait IRenderStuffThatOutlivesMe<'a> {
+    fn render(&self, grid: Grid) -> Result<Component<'a>, anyhow::Error>;
 }
