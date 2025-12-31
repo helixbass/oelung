@@ -1,5 +1,7 @@
+use std::cell::UnsafeCell;
 use std::io::Write;
 use std::iter;
+use std::mem;
 
 use crossterm::{
     cursor,
@@ -49,7 +51,7 @@ impl Renderer {
     }
 
     #[instrument(level = "trace", skip(self, component))]
-    pub fn render<'a>(&mut self, component: Component<'a>) -> Result<(), Error> {
+    pub fn render(&mut self, component: Component) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
 
         self.take_over_screen_guard
@@ -65,14 +67,10 @@ impl Renderer {
             height: self.size.height,
         };
 
-        let component_holder: ComponentHolder<'a> = ComponentHolder::default();
+        let component_holder = ComponentHolder::default();
         component_holder.push(component);
         while matches!(component_holder.get_most_recent(), Component::Component(_)) {
-            let rendered = component_holder
-                .get_most_recent()
-                .as_component()
-                .render(grid)?;
-            component_holder.push(rendered);
+            component_holder.render_most_recent_and_push(grid)?;
         }
 
         let mut rendering_context = RenderingContext::new(grid, style);
@@ -247,7 +245,7 @@ impl RenderingContext {
     }
 
     #[instrument(level = "trace", skip(self, component))]
-    pub fn render<'a>(&mut self, component: &Component<'a>) -> Result<(), Error> {
+    pub fn render(&mut self, component: &Component) -> Result<(), Error> {
         match component {
             Component::Text(text) => {
                 self.staged.push(_d());
@@ -291,16 +289,13 @@ impl RenderingContext {
                         height,
                     };
                     let mut rendering_context = RenderingContext::new(grid, self.style);
+
                     if matches!(child, Component::Component(_)) {
-                        let component_holder: ComponentHolder<'a> = _d();
+                        let component_holder = ComponentHolder::default();
                         component_holder.push(child.as_component().render(grid)?);
                         while matches!(component_holder.get_most_recent(), Component::Component(_))
                         {
-                            let rendered = component_holder
-                                .get_most_recent()
-                                .as_component()
-                                .render(grid)?;
-                            component_holder.push(rendered);
+                            component_holder.render_most_recent_and_push(grid)?;
                         }
                         rendering_context.render(component_holder.get_most_recent())?;
                     } else {
@@ -337,9 +332,9 @@ impl RenderingContext {
     }
 
     // #[instrument(level = "trace", skip(self, text, line_num, style))]
-    pub fn render_text<'a>(
+    pub fn render_text(
         &mut self,
-        text: &Text<'a>,
+        text: &Text,
         line_num: usize,
         mut style: Style,
     ) -> Result<(), Error> {
@@ -359,15 +354,11 @@ impl RenderingContext {
                 TextChild::NestedComponent(component) => {
                     let rendered = component.render(self.grid)?;
                     if matches!(&rendered, Component::Component(_)) {
-                        let component_holder: ComponentHolder<'a> = _d();
+                        let component_holder = ComponentHolder::default();
                         component_holder.push(rendered);
                         while matches!(component_holder.get_most_recent(), Component::Component(_))
                         {
-                            let rendered = component_holder
-                                .get_most_recent()
-                                .as_component()
-                                .render(self.grid)?;
-                            component_holder.push(rendered);
+                            component_holder.render_most_recent_and_push(self.grid)?;
                         }
                         let rendered = match component_holder.get_most_recent() {
                             Component::Text(rendered) => rendered,
@@ -444,7 +435,7 @@ impl StyledChunk {
 }
 
 #[derive(Default)]
-pub struct ComponentHolder<'a> {
+struct ComponentHolder<'a> {
     store: Vec<Vec<Component<'a>>>,
     len: usize,
 }
@@ -474,5 +465,20 @@ impl<'a> ComponentHolder<'a> {
         let store_index = (self.len - 1) / Self::PER_ROW;
         let index_in_row = (self.len - 1) % Self::PER_ROW;
         &self.store[store_index][index_in_row]
+    }
+
+    pub fn render_most_recent_and_push(&self, grid: Grid) -> Result<(), Error> {
+        let most_recent = self.get_most_recent();
+        let rendered = most_recent.as_component().render(grid)?;
+        self.push(
+            // SAFETY: I think again here this is fine because of
+            // the way we're promising to use/drop ComponentHolder,
+            // I think it's angry because really what's being rendered
+            // here is a component whose lifetime is attached to `self`,
+            // not `'a`
+            unsafe { mem::transmute::<_, Component<'a>>(rendered) },
+        );
+
+        Ok(())
     }
 }
