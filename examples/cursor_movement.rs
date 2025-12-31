@@ -85,11 +85,11 @@ fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn render_screen(
+fn render_screen<'a>(
     renderer: &mut Renderer,
     cursor_position: Position,
-    lines: &[String],
-    last_rendered_text_area_grid: &Cell<Option<Grid>>,
+    lines: &'a [String],
+    last_rendered_text_area_grid: &'a Cell<Option<Grid>>,
 ) -> Result<(), anyhow::Error> {
     let current_percent = ((f64::from(cursor_position.row)
         / f64::from(u32::try_from(lines.len()).unwrap()))
@@ -103,16 +103,43 @@ fn render_screen(
     //       %Text "Hit q to quit. Use j/k/h/l to move around the text area."
     //     ]
     // })?;
+    // let box_: Box<dyn ComponentInterface<'a> + 'a> =
+    //     Box::new(StatusBar::new(current_percent, cursor_position.column));
+    let box_: Box<dyn ComponentInterface<'static> + 'static> =
+        Box::new(StatusBar::new(current_percent, cursor_position.column));
     let flex_column = oelung::FlexColumn {
-        children: vec![Component::Component(Box::new(TextArea::new(
-            lines,
-            cursor_position,
-            last_rendered_text_area_grid,
-        )))],
+        children: vec![
+            Component::Component(Box::new(TextArea::new(
+                lines,
+                cursor_position,
+                last_rendered_text_area_grid,
+            ))),
+            // Component::Component(Box::new(StatusBar::new(
+            //     current_percent,
+            //     cursor_position.column,
+            // ))),
+            Component::Component(box_),
+            // Component::Text(
+            //     Text "Hit q to quit. Use j/k/h/l to move around the text area."
+            // )
+        ],
         flex_grow: None,
         cursor: None,
     };
     renderer.render(Component::FlexColumn(flex_column));
+    // renderer.render(Component::FlexColumn(
+    //     oelung::FlexColumnBuilder::default()
+    //         .child(Component::Component(Box::new(TextArea::new(
+    //             lines,
+    //             cursor_position,
+    //             last_rendered_text_area_grid,
+    //         ))))
+    //         .child(Component::Component(Box::new(StatusBar::new(
+    //             current_percent,
+    //             cursor_position.column,
+    //         ))))
+    //         .build()?,
+    // ));
 
     Ok(())
 }
@@ -137,8 +164,8 @@ impl<'a> TextArea<'a> {
     }
 }
 
-impl<'a> ComponentInterface<'a> for TextArea<'a> {
-    fn render(&self, grid: Grid) -> Result<Component<'a>, anyhow::Error> {
+impl<'a> ComponentInterface<'static> for TextArea<'a> {
+    fn render(&self, grid: Grid) -> Result<Component<'static, 'static>, anyhow::Error> {
         self.last_rendered_text_area_grid.set(Some(grid));
         let mut flex_column = FlexColumnBuilder::default();
         for line in self.lines {
@@ -175,7 +202,7 @@ impl StatusBar {
 }
 
 impl ComponentInterface<'static> for StatusBar {
-    fn render<'a>(&self, _grid: Grid) -> Result<Component<'static>, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component<'static, 'static>, anyhow::Error> {
         Ok(soft! {
           %Text
             color => Ansi(182)

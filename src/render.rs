@@ -49,7 +49,7 @@ impl Renderer {
     }
 
     #[instrument(level = "trace", skip(self, component))]
-    pub fn render<'a>(&mut self, component: Component<'a>) -> Result<(), Error> {
+    pub fn render(&mut self, component: Component) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
 
         self.take_over_screen_guard
@@ -64,12 +64,24 @@ impl Renderer {
             width: self.size.width,
             height: self.size.height,
         };
-        let mut component = component;
-        while matches!(component, Component::Component(_)) {
-            component = component.as_component().render(grid)?;
+        let mut maybe_child_component = if matches!(component, Component::Component(_)) {
+            Some(component.as_component().render(grid)?)
+        } else {
+            None
+        };
+        while matches!(maybe_child_component, Some(Component::Component(_))) {
+            maybe_child_component =
+                Some(maybe_child_component.unwrap().as_component().render(grid)?);
         }
         let mut rendering_context = RenderingContext::new(grid, style);
-        rendering_context.render(component)?;
+        match maybe_child_component {
+            Some(child_component) => {
+                rendering_context.render(child_component)?;
+            }
+            None => {
+                rendering_context.render(component)?;
+            }
+        }
         let RenderingContext {
             staged,
             rendered_cursor_position,
@@ -271,7 +283,7 @@ impl RenderingContext {
                             Some(height) => accum + height,
                         });
                 let mut num_rows_rendered = 0;
-                for mut child in flex_column.children {
+                for child in flex_column.children {
                     let height = if let Some(height) = child.height() {
                         height
                     } else {
@@ -283,11 +295,24 @@ impl RenderingContext {
                         width: self.grid.width,
                         height,
                     };
-                    while matches!(child, Component::Component(_)) {
-                        child = child.into_component().render(grid)?;
+                    let mut maybe_child_child = if matches!(&child, Component::Component(_)) {
+                        Some(child.as_component().render(grid)?)
+                    } else {
+                        None
+                    };
+                    while matches!(maybe_child_child, Some(Component::Component(_))) {
+                        maybe_child_child =
+                            Some(maybe_child_child.unwrap().into_component().render(grid)?);
                     }
                     let mut rendering_context = RenderingContext::new(grid, self.style);
-                    rendering_context.render(child)?;
+                    match maybe_child_child {
+                        Some(child_child) => {
+                            rendering_context.render(child_child)?;
+                        }
+                        None => {
+                            rendering_context.render(child)?;
+                        }
+                    }
                     let RenderingContext {
                         staged,
                         rendered_cursor_position,
