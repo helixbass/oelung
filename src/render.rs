@@ -133,22 +133,58 @@ impl Renderer {
             .last_rendered_grid_index
             .map(|last_rendered_grid_index| &self.grids[last_rendered_grid_index]);
         for (row_index, row) in staged.iter().enumerate() {
+            let prev_staged_row = prev_staged.map(|prev_staged| &prev_staged[row_index]);
+            enum MatchesPrevStagedRow {
+                MatchesPrefixNumChunksAndLength(usize, u16),
+                MatchesWholeRow,
+            }
+            let matches_prev_staged_row: Option<MatchesPrevStagedRow> =
+                prev_staged_row.and_then(|prev_staged_row| {
+                    let mut num_matched_chunks_and_length: (usize, u16) = (0, 0);
+                    for (index, styled_chunk) in row.into_iter().enumerate() {
+                        if prev_staged_row.get(index) != Some(styled_chunk) {
+                            return match num_matched_chunks_and_length.0 {
+                                0 => None,
+                                _ => Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(
+                                    num_matched_chunks_and_length.0,
+                                    num_matched_chunks_and_length.1,
+                                )),
+                            };
+                        }
+                        num_matched_chunks_and_length = (
+                            num_matched_chunks_and_length.0 + 1,
+                            num_matched_chunks_and_length.1
+                                + u16::try_from(styled_chunk.str.len()).unwrap(),
+                        );
+                    }
+                    Some(MatchesPrevStagedRow::MatchesWholeRow)
+                });
+            if matches!(
+                matches_prev_staged_row,
+                Some(MatchesPrevStagedRow::MatchesWholeRow)
+            ) {
+                continue;
+            }
+
             self.take_over_screen_guard
                 .stdout
-                .queue(cursor::MoveTo(0, u16::try_from(row_index).unwrap()))
+                .queue(cursor::MoveTo(
+                    match matches_prev_staged_row {
+                        None => 0,
+                        Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(_, len)) => len,
+                        _ => unreachable!(),
+                    },
+                    u16::try_from(row_index).unwrap(),
+                ))
                 .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
-            let prev_staged_row = prev_staged.map(|prev_staged| &prev_staged[row_index]);
-            let mut is_still_matching_prev_staged_row = prev_staged_row.is_some();
-            for (styled_chunk_index, styled_chunk) in row.into_iter().enumerate() {
-                if is_still_matching_prev_staged_row {
-                    if prev_staged_row.unwrap().get(styled_chunk_index) == Some(styled_chunk) {
-                        continue;
-                    } else {
-                        is_still_matching_prev_staged_row = false;
-                    }
+            for styled_chunk in row.into_iter().skip(match matches_prev_staged_row {
+                None => 0,
+                Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(num_chunks, _)) => {
+                    num_chunks
                 }
-
+                _ => unreachable!(),
+            }) {
                 match styled_chunk.style.color {
                     Some(color) => {
                         self.take_over_screen_guard
