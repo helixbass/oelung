@@ -3,18 +3,18 @@ use crate::{FlexColumn, Grid, Text};
 pub enum Component<'a> {
     Text(Text<'a>),
     FlexColumn(FlexColumn<'a>),
-    Component(Box<dyn ComponentInterface + 'a>),
+    Component(Box<dyn ComponentInterface<'a> + 'a>),
 }
 
 impl<'a> Component<'a> {
-    pub fn into_component(self) -> Box<dyn ComponentInterface + 'a> {
+    pub fn into_component(self) -> Box<dyn ComponentInterface<'a> + 'a> {
         match self {
             Self::Component(component) => component,
             _ => panic!("expected component"),
         }
     }
 
-    pub fn as_component(&self) -> &Box<dyn ComponentInterface + 'a> {
+    pub fn as_component(&self) -> &Box<dyn ComponentInterface<'a> + 'a> {
         match self {
             Self::Component(component) => component,
             _ => panic!("expected component"),
@@ -34,7 +34,7 @@ impl<'a> From<FlexColumn<'a>> for Component<'a> {
     }
 }
 
-pub trait ComponentInterface {
+pub trait ComponentInterface<'a> {
     fn flex_grow(&self) -> Option<f64> {
         None
     }
@@ -43,10 +43,10 @@ pub trait ComponentInterface {
         None
     }
 
-    fn render<'a>(&self, grid: Grid) -> Result<Component<'a>, anyhow::Error>;
+    fn render(&self, grid: Grid) -> Result<Component<'a>, anyhow::Error>;
 }
 
-impl ComponentInterface for Component<'_> {
+impl<'a> ComponentInterface<'a> for Component<'a> {
     fn flex_grow(&self) -> Option<f64> {
         match self {
             Self::Text(text) => text.flex_grow(),
@@ -63,7 +63,7 @@ impl ComponentInterface for Component<'_> {
         }
     }
 
-    fn render<'a>(&self, grid: Grid) -> Result<Component<'a>, anyhow::Error> {
+    fn render(&self, grid: Grid) -> Result<Component<'a>, anyhow::Error> {
         match self {
             Self::Text(text) => text.render(grid),
             Self::FlexColumn(flex_column) => flex_column.render(grid),

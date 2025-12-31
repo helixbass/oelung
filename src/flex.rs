@@ -6,12 +6,12 @@ pub struct FlexColumn<'a> {
     pub cursor: Option<Cursor>,
 }
 
-impl<'a> ComponentInterface for FlexColumn<'a> {
+impl<'a> ComponentInterface<'a> for FlexColumn<'a> {
     fn flex_grow(&self) -> Option<f64> {
         self.flex_grow
     }
 
-    fn render<'b>(&self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component<'a>, anyhow::Error> {
         unreachable!()
     }
 }

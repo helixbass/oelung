@@ -13,12 +13,12 @@ pub struct Text<'a> {
     pub style: Option<Style>,
 }
 
-impl<'a> ComponentInterface for Text<'a> {
+impl<'a> ComponentInterface<'a> for Text<'a> {
     fn height(&self) -> Option<u16> {
         Some(1)
     }
 
-    fn render<'b>(&self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component<'a>, anyhow::Error> {
         unreachable!()
     }
 }
@@ -47,7 +47,7 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
-    pub fn nested_component_child(mut self, child: Box<dyn ComponentInterface + 'a>) -> Self {
+    pub fn nested_component_child(mut self, child: Box<dyn ComponentInterface<'a> + 'a>) -> Self {
         self.children.push(TextChild::NestedComponent(child));
         self
     }
@@ -87,7 +87,7 @@ pub type TextChildren<'a> = SmallVec<[TextChild<'a>; 10]>;
 
 pub enum TextChild<'a> {
     Nested(Box<Text<'a>>),
-    NestedComponent(Box<dyn ComponentInterface + 'a>),
+    NestedComponent(Box<dyn ComponentInterface<'a> + 'a>),
     Text(SmolStr),
 }
 
