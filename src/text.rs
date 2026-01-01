@@ -83,7 +83,7 @@ impl<'a> TextBuilder<'a> {
     }
 }
 
-pub type TextChildren<'a> = SmallVec<[TextChild<'a>; 10]>;
+pub type TextChildren<'a> = SmallVec<TextChild<'a>, 10>;
 
 pub enum TextChild<'a> {
     Nested(Box<Text<'a>>),
