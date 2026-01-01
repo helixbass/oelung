@@ -18,7 +18,7 @@ impl<'a> ComponentInterface for Text<'a> {
         Some(1)
     }
 
-    fn render<'b: 'c, 'c>(&'c self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         unreachable!()
     }
 }

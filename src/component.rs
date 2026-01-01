@@ -43,7 +43,7 @@ pub trait ComponentInterface {
         None
     }
 
-    fn render<'a: 'b, 'b>(&'b self, grid: Grid) -> Result<Component<'a>, anyhow::Error>;
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error>;
 }
 
 impl<'a> ComponentInterface for Component<'a> {
@@ -63,7 +63,7 @@ impl<'a> ComponentInterface for Component<'a> {
         }
     }
 
-    fn render<'b: 'c, 'c>(&'c self, grid: Grid) -> Result<Component<'b>, anyhow::Error> {
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         match self {
             Self::Text(text) => text.render(grid),
             Self::FlexColumn(flex_column) => flex_column.render(grid),

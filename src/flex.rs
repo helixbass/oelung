@@ -11,7 +11,7 @@ impl<'a> ComponentInterface for FlexColumn<'a> {
         self.flex_grow
     }
 
-    fn render<'b: 'c, 'c>(&'c self, _grid: Grid) -> Result<Component<'b>, anyhow::Error> {
+    fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         unreachable!()
     }
 }
