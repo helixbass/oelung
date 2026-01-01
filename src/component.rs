@@ -1,20 +1,23 @@
+use std::rc::Rc;
+
 use crate::{FlexColumn, Grid, Text};
 
+#[derive(Clone)]
 pub enum Component<'a> {
     Text(Text<'a>),
     FlexColumn(FlexColumn<'a>),
-    Component(Box<dyn ComponentInterface + 'a>),
+    Component(Rc<dyn ComponentInterface + 'a>),
 }
 
 impl<'a> Component<'a> {
-    pub fn into_component(self) -> Box<dyn ComponentInterface + 'a> {
+    pub fn into_component(self) -> Rc<dyn ComponentInterface + 'a> {
         match self {
             Self::Component(component) => component,
             _ => panic!("expected component"),
         }
     }
 
-    pub fn as_component(&self) -> &Box<dyn ComponentInterface + 'a> {
+    pub fn as_component(&self) -> &Rc<dyn ComponentInterface + 'a> {
         match self {
             Self::Component(component) => component,
             _ => panic!("expected component"),

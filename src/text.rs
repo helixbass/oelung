@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use std::rc::Rc;
 
 use crossterm::style::Color;
 
@@ -7,6 +8,7 @@ use smol_str::{SmolStr, ToSmolStr};
 
 use crate::{Component, ComponentInterface, Cursor, Error, Grid, Style, StyleBuilder};
 
+#[derive(Clone)]
 pub struct Text<'a> {
     pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
@@ -47,7 +49,7 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
-    pub fn nested_component_child(mut self, child: Box<dyn ComponentInterface + 'a>) -> Self {
+    pub fn nested_component_child(mut self, child: Rc<dyn ComponentInterface + 'a>) -> Self {
         self.children.push(TextChild::NestedComponent(child));
         self
     }
@@ -85,15 +87,16 @@ impl<'a> TextBuilder<'a> {
 
 pub type TextChildren<'a> = SmallVec<TextChild<'a>, 10>;
 
+#[derive(Clone)]
 pub enum TextChild<'a> {
-    Nested(Box<Text<'a>>),
-    NestedComponent(Box<dyn ComponentInterface + 'a>),
+    Nested(Rc<Text<'a>>),
+    NestedComponent(Rc<dyn ComponentInterface + 'a>),
     Text(SmolStr),
 }
 
 impl<'a> From<Text<'a>> for TextChild<'a> {
     fn from(value: Text<'a>) -> Self {
-        Self::Nested(Box::new(value))
+        Self::Nested(Rc::new(value))
     }
 }
 

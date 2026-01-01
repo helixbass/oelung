@@ -66,7 +66,7 @@ impl ToTokens for Element {
             }
             Self::Text(text) => quote! { ::oelung::Component::Text(#text) },
             Self::Component(component) => {
-                quote! { ::oelung::Component::Component(::std::boxed::Box::new(#component)) }
+                quote! { ::oelung::Component::Component(::std::rc::Rc::new(#component)) }
             }
             Self::AlreadyComponent(component) => {
                 quote! { #component }
@@ -392,7 +392,7 @@ impl ToTokens for Text {
             TextChild::Text(text) => quote! { .text_child(#text) },
             TextChild::Nested(nested) => quote! { .nested_child(#nested) },
             TextChild::NestedComponent(nested_component) => {
-                quote! { .nested_component_child(::std::boxed::Box::new(#nested_component)) }
+                quote! { .nested_component_child(::std::rc::Rc::new(#nested_component)) }
             }
         });
 

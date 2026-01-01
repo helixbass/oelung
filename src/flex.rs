@@ -1,5 +1,6 @@
 use crate::{Component, ComponentInterface, Cursor, Error, Grid, Relative};
 
+#[derive(Clone)]
 pub struct FlexColumn<'a> {
     pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
