@@ -1,4 +1,4 @@
-use crate::{FlexColumn, Grid, Relative, Text};
+use crate::{FlexColumn, Grid, Text};
 
 pub enum Component<'a> {
     Text(Text<'a>),
@@ -44,10 +44,6 @@ pub trait ComponentInterface {
     fn height(&self) -> Option<u16> {
         None
     }
-
-    fn relative(&self) -> Option<Relative> {
-        None
-    }
 }
 
 impl<'a> ComponentInterface for Component<'a> {
@@ -72,14 +68,6 @@ impl<'a> ComponentInterface for Component<'a> {
             Self::Text(text) => text.height(),
             Self::FlexColumn(flex_column) => flex_column.height(),
             Self::Component(component) => component.height(),
-        }
-    }
-
-    fn relative(&self) -> Option<Relative> {
-        match self {
-            Self::Text(text) => text.relative(),
-            Self::FlexColumn(flex_column) => flex_column.relative(),
-            Self::Component(component) => component.relative(),
         }
     }
 }

@@ -1,8 +1,9 @@
-use crate::{Component, ComponentInterface, Cursor, Error, Grid};
+use crate::{Component, ComponentInterface, Cursor, Error, Grid, Relative};
 
 pub struct FlexColumn<'a> {
     pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
+    pub relative: Option<Relative>,
     pub cursor: Option<Cursor>,
 }
 
@@ -20,6 +21,7 @@ impl<'a> ComponentInterface for FlexColumn<'a> {
 pub struct FlexColumnBuilder<'a> {
     pub children: Vec<Component<'a>>,
     pub flex_grow: Option<f64>,
+    pub relative: Option<Relative>,
     pub cursor: Option<Cursor>,
 }
 
@@ -29,8 +31,13 @@ impl<'a> FlexColumnBuilder<'a> {
         self
     }
 
-    pub fn flex_grow(mut self, value: impl Into<f64>) -> Self {
-        self.flex_grow = Some(value.into());
+    pub fn flex_grow(mut self, flex_grow: impl Into<f64>) -> Self {
+        self.flex_grow = Some(flex_grow.into());
+        self
+    }
+
+    pub fn relative(mut self, relative: Relative) -> Self {
+        self.relative = Some(relative);
         self
     }
 
@@ -46,6 +53,7 @@ impl<'a> FlexColumnBuilder<'a> {
         Ok(FlexColumn {
             children: self.children,
             flex_grow: self.flex_grow,
+            relative: self.relative,
             cursor: self.cursor,
         })
     }
