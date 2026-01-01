@@ -1,4 +1,4 @@
-use crate::{FlexColumn, Grid, Text};
+use crate::{FlexColumn, Grid, Relative, Text};
 
 pub enum Component<'a> {
     Text(Text<'a>),
@@ -35,6 +35,8 @@ impl<'a> From<FlexColumn<'a>> for Component<'a> {
 }
 
 pub trait ComponentInterface {
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error>;
+
     fn flex_grow(&self) -> Option<f64> {
         None
     }
@@ -43,10 +45,20 @@ pub trait ComponentInterface {
         None
     }
 
-    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error>;
+    fn relative(&self) -> Option<Relative> {
+        None
+    }
 }
 
 impl<'a> ComponentInterface for Component<'a> {
+    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error> {
+        match self {
+            Self::Text(text) => text.render(grid),
+            Self::FlexColumn(flex_column) => flex_column.render(grid),
+            Self::Component(component) => component.render(grid),
+        }
+    }
+
     fn flex_grow(&self) -> Option<f64> {
         match self {
             Self::Text(text) => text.flex_grow(),
@@ -63,11 +75,11 @@ impl<'a> ComponentInterface for Component<'a> {
         }
     }
 
-    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error> {
+    fn relative(&self) -> Option<Relative> {
         match self {
-            Self::Text(text) => text.render(grid),
-            Self::FlexColumn(flex_column) => flex_column.render(grid),
-            Self::Component(component) => component.render(grid),
+            Self::Text(text) => text.relative(),
+            Self::FlexColumn(flex_column) => flex_column.relative(),
+            Self::Component(component) => component.relative(),
         }
     }
 }
