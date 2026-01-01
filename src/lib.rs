@@ -12,7 +12,7 @@ mod style;
 mod terminal;
 mod text;
 
-pub use component::{Component, ComponentInterface, IRenderStuffThatOutlivesMe};
+pub use component::{Component, ComponentInterface};
 pub use cursor::{Cursor, Offset};
 pub use error::Error;
 pub use flex::{FlexColumn, FlexColumnBuilder};
