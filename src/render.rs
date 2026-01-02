@@ -486,60 +486,58 @@ fn paint_on_top_of(onto: &mut Staged, from: Staged) {
         let mut num_bytes_fully_past_in_old_row = 0;
         let mut num_bytes_already_seen_in_new_row = 0;
         for chunk in row {
-            let end_byte_of_new_chunk = num_bytes_already_seen_in_new_row + chunk.str.len();
+            let chunk_len = chunk.str.len();
+            let end_byte_of_new_chunk = num_bytes_already_seen_in_new_row + chunk_len;
             'chunk: {
                 match chunk.style.background_color {
                     Some(_) => {
                         new_row.push(chunk);
-                        if let Some(ProgressInOldRow::InProgress(in_progress)) = progress_in_old_row
-                        {
-                            let end_byte_of_in_progress = num_bytes_fully_past_in_old_row
-                                + onto[row_index][in_progress].str.len();
-                            if end_byte_of_in_progress > end_byte_of_new_chunk {
-                                break 'chunk;
-                            }
-                        }
                         progress_in_old_row = 'outer: {
-                            match progress_in_old_row {
-                                None => {
-                                    let mut next_old_row_index = 0;
-                                    loop {
-                                        let Some(next_old_chunk) =
-                                            onto[row_index].get(next_old_row_index)
-                                        else {
-                                            break 'outer match next_old_row_index {
-                                                0 => None,
-                                                next_old_row_index => {
-                                                    Some(ProgressInOldRow::FullyPast(
-                                                        next_old_row_index - 1,
-                                                    ))
-                                                }
-                                            };
-                                        };
-                                        let end_byte_of_next_old_row_chunk =
-                                            num_bytes_fully_past_in_old_row
-                                                + next_old_chunk.str.len();
-                                        match end_byte_of_next_old_row_chunk
-                                            .cmp(&end_byte_of_new_chunk)
-                                        {
-                                            Ordering::Less => {
-                                                num_bytes_fully_past_in_old_row +=
-                                                    next_old_chunk.str.len();
-                                                next_old_row_index += 1;
-                                            }
-                                            Ordering::Equal => {
-                                                num_bytes_fully_past_in_old_row +=
-                                                    next_old_chunk.str.len();
-                                                break 'outer Some(ProgressInOldRow::FullyPast(
-                                                    next_old_row_index,
-                                                ));
-                                            }
-                                            Ordering::Greater => {
-                                                break 'outer Some(ProgressInOldRow::InProgress(
-                                                    next_old_row_index,
-                                                ));
-                                            }
-                                        }
+                            let mut next_old_row_index = match progress_in_old_row {
+                                None => 0,
+                                Some(ProgressInOldRow::FullyPast(fully_past_old_row_index)) => {
+                                    fully_past_old_row_index + 1
+                                }
+                                Some(ProgressInOldRow::InProgress(in_progress_old_row_index)) => {
+                                    let in_progress_old_row_chunk_len =
+                                        onto[row_index][in_progress_old_row_index].str.len();
+                                    let end_byte_of_in_progress = num_bytes_fully_past_in_old_row
+                                        + in_progress_old_row_chunk_len;
+                                    if end_byte_of_in_progress > end_byte_of_new_chunk {
+                                        break 'chunk;
+                                    }
+                                    num_bytes_fully_past_in_old_row +=
+                                        in_progress_old_row_chunk_len;
+                                    in_progress_old_row_index + 1
+                                }
+                            };
+                            loop {
+                                let Some(next_old_chunk) = onto[row_index].get(next_old_row_index)
+                                else {
+                                    break 'outer match next_old_row_index {
+                                        0 => None,
+                                        next_old_row_index => Some(ProgressInOldRow::FullyPast(
+                                            next_old_row_index - 1,
+                                        )),
+                                    };
+                                };
+                                let end_byte_of_next_old_row_chunk =
+                                    num_bytes_fully_past_in_old_row + next_old_chunk.str.len();
+                                match end_byte_of_next_old_row_chunk.cmp(&end_byte_of_new_chunk) {
+                                    Ordering::Less => {
+                                        num_bytes_fully_past_in_old_row += next_old_chunk.str.len();
+                                        next_old_row_index += 1;
+                                    }
+                                    Ordering::Equal => {
+                                        num_bytes_fully_past_in_old_row += next_old_chunk.str.len();
+                                        break 'outer Some(ProgressInOldRow::FullyPast(
+                                            next_old_row_index,
+                                        ));
+                                    }
+                                    Ordering::Greater => {
+                                        break 'outer Some(ProgressInOldRow::InProgress(
+                                            next_old_row_index,
+                                        ));
                                     }
                                 }
                             }
@@ -548,7 +546,7 @@ fn paint_on_top_of(onto: &mut Staged, from: Staged) {
                     None => {}
                 }
             }
-            num_bytes_already_seen_in_new_row += chunk.str.len();
+            num_bytes_already_seen_in_new_row += chunk_len;
         }
     }
 }
