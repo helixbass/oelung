@@ -329,6 +329,12 @@ impl RenderingContext {
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
                 }
+                if num_rows_rendered < self.grid.height {
+                    self.staged.extend(
+                        iter::repeat(smallvec![])
+                            .take(usize::from(self.grid.height - num_rows_rendered)),
+                    );
+                }
                 if !absolute_children.is_empty() {
                     assert_eq!(flex_column.relative, Some(Relative::NotMoved));
                 }
@@ -464,7 +470,7 @@ pub struct Grid {
 
 pub type Staged = SmallVec<SmallVec<StyledChunk, 10>, 10>;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StyledChunk {
     pub str: SmolStr,
     pub style: Style,
