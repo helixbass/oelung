@@ -577,6 +577,24 @@ fn paint_on_top_of(onto: &mut Staged, from: Staged) {
                                         });
                                         break 'chunk;
                                     }
+                                    Ordering::Less => {
+                                        num_bytes_fully_past_in_old_row += next_old_chunk_len;
+                                        new_row.push(StyledChunk {
+                                            str: chunk.str
+                                                [num_bytes_already_printed_in_this_new_chunk
+                                                    ..num_bytes_already_printed_in_this_new_chunk
+                                                        + next_old_chunk_len]
+                                                .to_smolstr(),
+                                            style: Style {
+                                                color: chunk.style.color,
+                                                background_color: next_old_chunk
+                                                    .style
+                                                    .background_color,
+                                            },
+                                        });
+                                        num_bytes_already_printed_in_this_new_chunk +=
+                                            next_old_chunk_len;
+                                    }
                                 }
                             }
                         }
