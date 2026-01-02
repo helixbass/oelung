@@ -14,8 +14,8 @@ use squalid::_d;
 use tracing::instrument;
 
 use crate::{
-    size, take_over_screen, Component, ComponentInterface, Cursor, Error, Offset, Size, Style,
-    TakeOverScreenGuard, Text, TextChild,
+    size, take_over_screen, Component, Cursor, Error, Offset, Size, Style, TakeOverScreenGuard,
+    Text, TextChild,
 };
 
 pub struct Renderer {

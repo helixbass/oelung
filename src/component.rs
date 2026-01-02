@@ -23,6 +23,22 @@ impl<'a> Component<'a> {
             _ => panic!("expected component"),
         }
     }
+
+    pub fn flex_grow(&self) -> Option<f64> {
+        match self {
+            Self::Text(_) => None,
+            Self::FlexColumn(flex_column) => flex_column.flex_grow(),
+            Self::Component(component) => component.flex_grow(),
+        }
+    }
+
+    pub fn height(&self) -> Option<u16> {
+        match self {
+            Self::Text(text) => text.height(),
+            Self::FlexColumn(_) => None,
+            Self::Component(component) => component.height(),
+        }
+    }
 }
 
 impl<'a> From<Text<'a>> for Component<'a> {
@@ -46,31 +62,5 @@ pub trait ComponentInterface {
 
     fn height(&self) -> Option<u16> {
         None
-    }
-}
-
-impl<'a> ComponentInterface for Component<'a> {
-    fn render(&self, grid: Grid) -> Result<Component<'_>, anyhow::Error> {
-        match self {
-            Self::Text(text) => text.render(grid),
-            Self::FlexColumn(flex_column) => flex_column.render(grid),
-            Self::Component(component) => component.render(grid),
-        }
-    }
-
-    fn flex_grow(&self) -> Option<f64> {
-        match self {
-            Self::Text(text) => text.flex_grow(),
-            Self::FlexColumn(flex_column) => flex_column.flex_grow(),
-            Self::Component(component) => component.flex_grow(),
-        }
-    }
-
-    fn height(&self) -> Option<u16> {
-        match self {
-            Self::Text(text) => text.height(),
-            Self::FlexColumn(flex_column) => flex_column.height(),
-            Self::Component(component) => component.height(),
-        }
     }
 }

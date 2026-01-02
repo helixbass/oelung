@@ -1,4 +1,4 @@
-use crate::{Component, ComponentInterface, Cursor, Error, Grid, Relative};
+use crate::{Component, Cursor, Error, Relative};
 
 #[derive(Clone)]
 pub struct FlexColumn<'a> {
@@ -8,13 +8,9 @@ pub struct FlexColumn<'a> {
     pub cursor: Option<Cursor>,
 }
 
-impl<'a> ComponentInterface for FlexColumn<'a> {
-    fn flex_grow(&self) -> Option<f64> {
+impl<'a> FlexColumn<'a> {
+    pub fn flex_grow(&self) -> Option<f64> {
         self.flex_grow
-    }
-
-    fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
-        unreachable!()
     }
 }
 

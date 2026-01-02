@@ -6,7 +6,7 @@ use crossterm::style::Color;
 use smallvec::SmallVec;
 use smol_str::{SmolStr, ToSmolStr};
 
-use crate::{Component, ComponentInterface, Cursor, Error, Grid, Style, StyleBuilder};
+use crate::{ComponentInterface, Cursor, Error, Style, StyleBuilder};
 
 #[derive(Clone)]
 pub struct Text<'a> {
@@ -15,13 +15,9 @@ pub struct Text<'a> {
     pub style: Option<Style>,
 }
 
-impl<'a> ComponentInterface for Text<'a> {
-    fn height(&self) -> Option<u16> {
+impl<'a> Text<'a> {
+    pub fn height(&self) -> Option<u16> {
         Some(1)
-    }
-
-    fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
-        unreachable!()
     }
 }
 
