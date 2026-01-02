@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::Component;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Relative {
     NotMoved,
 }

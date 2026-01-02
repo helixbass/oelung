@@ -16,8 +16,8 @@ use squalid::{EverythingExt, _d};
 use tracing::instrument;
 
 use crate::{
-    size, take_over_screen, Component, Cursor, Error, Offset, Size, Style, TakeOverScreenGuard,
-    Text, TextChild,
+    size, take_over_screen, Component, Cursor, Error, Offset, Relative, Size, Style,
+    TakeOverScreenGuard, Text, TextChild,
 };
 
 pub struct Renderer {
@@ -328,6 +328,9 @@ impl RenderingContext {
                         }
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
+                }
+                if !absolute_children.is_empty() {
+                    assert_eq!(flex_column.relative, Some(Relative::NotMoved));
                 }
                 for child in &absolute_children {
                     let grid = self.grid;
