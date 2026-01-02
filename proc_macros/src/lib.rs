@@ -92,6 +92,7 @@ struct FlexColumn {
     pub children: Vec<Element>,
     pub flex_grow: Option<LitFloatOrInt>,
     pub cursor: Option<Cursor>,
+    pub relative: Option<Expr>,
 }
 
 impl Parse for FlexColumn {
@@ -99,6 +100,7 @@ impl Parse for FlexColumn {
         let mut children: Option<Vec<Element>> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
         let mut cursor: Option<Cursor> = _d();
+        let mut relative: Option<Expr> = _d();
 
         let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
         let me_percent_sign_row = illicit::expect::<MePercentSignRow>();
@@ -145,6 +147,10 @@ impl Parse for FlexColumn {
                                 assert!(cursor.is_none(), "Already saw 'cursor' key");
                                 cursor = Some(input.parse()?);
                             }
+                            "relative" => {
+                                assert!(relative.is_none(), "Already saw 'relative' key");
+                                relative = Some(input.parse::<LessThanBinaryExpr>()?.expr);
+                            }
                             key => return Err(input.error(format!("Unexpected key `{key}`"))),
                         }
 
@@ -168,6 +174,7 @@ impl Parse for FlexColumn {
             children: children.expect("Expected `children`"),
             flex_grow,
             cursor,
+            relative,
         })
     }
 }
@@ -195,12 +202,19 @@ impl ToTokens for FlexColumn {
                 .cursor(#cursor)
             },
         };
+        let relative = match self.relative.as_ref() {
+            None => quote! {},
+            Some(relative) => quote! {
+                .relative(#relative)
+            },
+        };
 
         quote! {
             ::oelung::FlexColumnBuilder::default()
                 #(#children)*
                 #flex_grow
                 #cursor
+                #relative
                 .build()?
         }
         .to_tokens(tokens)
