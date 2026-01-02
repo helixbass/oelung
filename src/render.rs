@@ -9,8 +9,9 @@ use crossterm::{
     terminal::{Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
+use smallvec::SmallVec;
 use smol_str::{SmolStr, ToSmolStr};
-use squalid::_d;
+use squalid::{EverythingExt, _d};
 use tracing::instrument;
 
 use crate::{
@@ -87,10 +88,6 @@ impl Renderer {
             _ => unreachable!(),
         }] = staged;
         if let Some(rendered_cursor_position) = rendered_cursor_position {
-            // TODO: looks like this could never be true?
-            if self.rendered_cursor_position_in_this_render.is_some() {
-                return Err(Error::RenderedCursorMoreThanOnce);
-            }
             self.rendered_cursor_position_in_this_render = Some(rendered_cursor_position);
         }
 
@@ -229,7 +226,6 @@ pub struct RenderingContext {
     pub grid: Grid,
     pub staged: Staged,
     pub rendered_cursor_position: Option<Position>,
-    // pub current_line_number: Option<usize>,
     pub style: Style,
 }
 
@@ -239,7 +235,6 @@ impl RenderingContext {
             grid,
             staged: _d(),
             rendered_cursor_position: _d(),
-            // current_line_number: _d(),
             style,
         }
     }
@@ -252,31 +247,43 @@ impl RenderingContext {
                 self.render_text(text, 0, self.style)?;
             }
             Component::FlexColumn(flex_column) => {
+                let (absolute_children, non_absolute_children) = flex_column
+                    .children
+                    .iter()
+                    .partition::<SmallVec<&'_ Component<'_>, 10>, _>(|child| {
+                        matches!(child, Component::Absolute(_))
+                    })
+                    .thrush(|(absolute_children, non_absolute_children)| {
+                        (
+                            absolute_children
+                                .into_iter()
+                                .map(|absolute| absolute.as_absolute())
+                                .collect::<SmallVec<_, 10>>(),
+                            non_absolute_children,
+                        )
+                    });
                 assert!(
-                    flex_column
-                        .children
+                    non_absolute_children
                         .iter()
-                        .filter(|child| child.flex_grow() == Some(1.0) && child.height().is_none())
+                        .filter(|child| {
+                            child.flex_grow() == Some(1.0) && child.height().is_none()
+                        })
                         .count()
                         <= 1
                 );
-                assert!(flex_column
-                    .children
-                    .iter()
-                    .all(
-                        |child| child.flex_grow() == Some(1.0) && child.height().is_none()
-                            || child.flex_grow() == None && child.height().is_some()
-                    ));
+                assert!(non_absolute_children.iter().all(|child| {
+                    child.flex_grow() == Some(1.0) && child.height().is_none()
+                        || child.flex_grow() == None && child.height().is_some()
+                }));
                 let fixed_children_total_height =
-                    flex_column
-                        .children
+                    non_absolute_children
                         .iter()
                         .fold(0, |accum, child| match child.height() {
                             None => accum,
                             Some(height) => accum + height,
                         });
                 let mut num_rows_rendered = 0;
-                for child in &flex_column.children {
+                for child in &non_absolute_children {
                     let height = if let Some(height) = child.height() {
                         height
                     } else {
@@ -325,6 +332,7 @@ impl RenderingContext {
                     self.render_cursor(cursor)?;
                 }
             }
+            Component::Absolute(_) => unreachable!(),
             Component::Component(_) => unreachable!(),
         }
 

@@ -17,7 +17,7 @@ pub use component::{Component, ComponentInterface};
 pub use cursor::{Cursor, Offset};
 pub use error::Error;
 pub use flex::{FlexColumn, FlexColumnBuilder};
-pub use layout::Relative;
+pub use layout::{Absolute, Relative};
 pub use render::{Grid, Renderer};
 pub use style::{Style, StyleBuilder};
 pub use terminal::{size, take_over_screen, Size, TakeOverScreenGuard};
