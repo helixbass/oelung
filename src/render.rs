@@ -1,4 +1,5 @@
 use std::cell::{Cell, UnsafeCell};
+use std::cmp::Ordering;
 use std::io::Write;
 use std::iter;
 use std::mem;
@@ -333,7 +334,7 @@ impl RenderingContext {
                     let mut rendering_context = RenderingContext::new(grid, self.style);
                     let child = &child.content;
 
-                    if matches!(child, Component::Component(_)) {
+                    if matches!(&**child, Component::Component(_)) {
                         let component_holder = ComponentHolder::default();
                         component_holder.push(child.as_component().render(grid)?);
                         while matches!(component_holder.get_most_recent(), Component::Component(_))
@@ -458,7 +459,7 @@ pub struct Grid {
     pub width: u16,
 }
 
-pub type Staged = Vec<Vec<StyledChunk>>;
+pub type Staged = SmallVec<SmallVec<StyledChunk, 10>, 10>;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct StyledChunk {
@@ -469,6 +470,86 @@ pub struct StyledChunk {
 impl StyledChunk {
     pub fn new(str: SmolStr, style: Style) -> Self {
         Self { str, style }
+    }
+}
+
+fn paint_on_top_of(onto: &mut Staged, from: Staged) {
+    for (row_index, row) in from.into_iter().enumerate() {
+        // let onto_row = &mut onto[row_index];
+        let mut new_row: SmallVec<StyledChunk, 10> = _d();
+        #[derive(Copy, Clone)]
+        enum ProgressInOldRow {
+            InProgress(usize),
+            FullyPast(usize),
+        }
+        let mut progress_in_old_row: Option<ProgressInOldRow> = _d();
+        let mut num_bytes_fully_past_in_old_row = 0;
+        let mut num_bytes_already_seen_in_new_row = 0;
+        for chunk in row {
+            let end_byte_of_new_chunk = num_bytes_already_seen_in_new_row + chunk.str.len();
+            'chunk: {
+                match chunk.style.background_color {
+                    Some(_) => {
+                        new_row.push(chunk);
+                        if let Some(ProgressInOldRow::InProgress(in_progress)) = progress_in_old_row
+                        {
+                            let end_byte_of_in_progress = num_bytes_fully_past_in_old_row
+                                + onto[row_index][in_progress].str.len();
+                            if end_byte_of_in_progress > end_byte_of_new_chunk {
+                                break 'chunk;
+                            }
+                        }
+                        progress_in_old_row = 'outer: {
+                            match progress_in_old_row {
+                                None => {
+                                    let mut next_old_row_index = 0;
+                                    loop {
+                                        let Some(next_old_chunk) =
+                                            onto[row_index].get(next_old_row_index)
+                                        else {
+                                            break 'outer match next_old_row_index {
+                                                0 => None,
+                                                next_old_row_index => {
+                                                    Some(ProgressInOldRow::FullyPast(
+                                                        next_old_row_index - 1,
+                                                    ))
+                                                }
+                                            };
+                                        };
+                                        let end_byte_of_next_old_row_chunk =
+                                            num_bytes_fully_past_in_old_row
+                                                + next_old_chunk.str.len();
+                                        match end_byte_of_next_old_row_chunk
+                                            .cmp(&end_byte_of_new_chunk)
+                                        {
+                                            Ordering::Less => {
+                                                num_bytes_fully_past_in_old_row +=
+                                                    next_old_chunk.str.len();
+                                                next_old_row_index += 1;
+                                            }
+                                            Ordering::Equal => {
+                                                num_bytes_fully_past_in_old_row +=
+                                                    next_old_chunk.str.len();
+                                                break 'outer Some(ProgressInOldRow::FullyPast(
+                                                    next_old_row_index,
+                                                ));
+                                            }
+                                            Ordering::Greater => {
+                                                break 'outer Some(ProgressInOldRow::InProgress(
+                                                    next_old_row_index,
+                                                ));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                    }
+                    None => {}
+                }
+            }
+            num_bytes_already_seen_in_new_row += chunk.str.len();
+        }
     }
 }
 
