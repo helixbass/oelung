@@ -13,7 +13,9 @@ pub struct Absolute<'a> {
 }
 
 impl<'a> Absolute<'a> {
-    pub fn new(content: Rc<Component<'a>>) -> Self {
-        Self { content }
+    pub fn new(content: Component<'a>) -> Self {
+        Self {
+            content: Rc::new(content),
+        }
     }
 }
