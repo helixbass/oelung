@@ -10,12 +10,14 @@ use syn::{
 mod custom_keywords {
     syn::custom_keyword!(FlexColumn);
     syn::custom_keyword!(Text);
+    syn::custom_keyword!(Absolute);
     syn::custom_keyword!(children);
 }
 
 enum Element {
     FlexColumn(FlexColumn),
     Text(Text),
+    Absolute(Absolute),
     Component(Expr),
     AlreadyComponent(Expr),
 }
@@ -45,6 +47,15 @@ impl Parse for Element {
                             .offer(MePercentSignRow(me_percent_sign_row))
                             .enter(|| -> Result<Text> { Ok(input.parse()?) })?,
                     )
+                } else if input.peek(custom_keywords::Absolute) {
+                    let name: Ident = input.parse().unwrap();
+                    assert_eq!(name.to_string(), "Absolute");
+                    Self::Absolute(
+                        illicit::Layer::new()
+                            .offer(MePercentSignStartColumn(me_percent_sign_start_column))
+                            .offer(MePercentSignRow(me_percent_sign_row))
+                            .enter(|| -> Result<Absolute> { Ok(input.parse()?) })?,
+                    )
                 } else {
                     let component = input.parse::<LessThanBinaryExpr>()?.expr;
                     Self::Component(component)
@@ -65,6 +76,7 @@ impl ToTokens for Element {
                 quote! { ::oelung::Component::FlexColumn(#flex_column) }
             }
             Self::Text(text) => quote! { ::oelung::Component::Text(#text) },
+            Self::Absolute(absolute) => quote! { ::oelung::Component::Absolute(#absolute) },
             Self::Component(component) => {
                 quote! { ::oelung::Component::Component(::std::rc::Rc::new(#component)) }
             }
@@ -453,6 +465,81 @@ impl Parse for TextChild {
             Element::Component(component) => Self::NestedComponent(component),
             _ => return Err(input.error("Expected text child")),
         })
+    }
+}
+
+struct Absolute {
+    pub content: Box<Element>,
+}
+
+impl Parse for Absolute {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut content: Option<Element> = _d();
+
+        let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
+        let me_percent_sign_row = illicit::expect::<MePercentSignRow>();
+        let parent_percent_sign_start_column = illicit::get::<ParentPercentSignStartColumn>().ok();
+        let parent_enclosing_attribute_start_column =
+            illicit::get::<ParentEnclosingAttributeStartColumn>().ok();
+        illicit::hide::<MePercentSignStartColumn>();
+        illicit::hide::<MePercentSignRow>();
+        illicit::hide::<ParentEnclosingAttributeStartColumn>();
+        let smallest_allowed_column = parent_enclosing_attribute_start_column
+            .as_ref()
+            .map(|parent_enclosing_attribute_start_column| {
+                parent_enclosing_attribute_start_column.0 + 1
+            })
+            .or_else(|| {
+                parent_percent_sign_start_column
+                    .as_ref()
+                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0 + 1)
+            })
+            .unwrap_or(me_percent_sign_start_column.0);
+        illicit::Layer::new()
+            .offer(ParentPercentSignStartColumn(me_percent_sign_start_column.0))
+            .enter(|| -> Result<()> {
+                while input.peek(Ident) && input.span().start().column >= smallest_allowed_column {
+                    let mut parse_attribute = || -> Result<()> {
+                        let key = input.parse::<Ident>().unwrap().to_string();
+                        input.parse::<Token![=>]>()?;
+                        match &*key {
+                            "content" => {
+                                assert!(content.is_none(), "Already saw 'content' key");
+                                content = Some(input.parse()?);
+                            }
+                            key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                        }
+
+                        Ok(())
+                    };
+                    if input.span().start().line > me_percent_sign_row.0 {
+                        illicit::Layer::new()
+                            .offer(ParentEnclosingAttributeStartColumn(
+                                input.span().start().column,
+                            ))
+                            .enter(parse_attribute)
+                    } else {
+                        parse_attribute()
+                    }?
+                }
+
+                Ok(())
+            })?;
+
+        Ok(Self {
+            content: Box::new(content.expect("Expected `content`")),
+        })
+    }
+}
+
+impl ToTokens for Absolute {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let content = &*self.content;
+
+        quote! {
+            ::oelung::Absolute::new(#content)
+        }
+        .to_tokens(tokens)
     }
 }
 

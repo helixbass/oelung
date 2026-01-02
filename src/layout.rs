@@ -11,3 +11,9 @@ pub enum Relative {
 pub struct Absolute<'a> {
     pub content: Rc<Component<'a>>,
 }
+
+impl<'a> Absolute<'a> {
+    pub fn new(content: Rc<Component<'a>>) -> Self {
+        Self { content }
+    }
+}
