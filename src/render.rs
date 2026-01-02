@@ -328,6 +328,36 @@ impl RenderingContext {
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
                 }
+                for child in &absolute_children {
+                    let grid = self.grid;
+                    let mut rendering_context = RenderingContext::new(grid, self.style);
+                    let child = &child.content;
+
+                    if matches!(child, Component::Component(_)) {
+                        let component_holder = ComponentHolder::default();
+                        component_holder.push(child.as_component().render(grid)?);
+                        while matches!(component_holder.get_most_recent(), Component::Component(_))
+                        {
+                            component_holder.render_most_recent_and_push(grid)?;
+                        }
+                        rendering_context.render(component_holder.get_most_recent())?;
+                    } else {
+                        rendering_context.render(child)?;
+                    };
+                    let RenderingContext {
+                        staged,
+                        rendered_cursor_position,
+                        ..
+                    } = rendering_context;
+                    assert!(staged.len() <= usize::from(grid.height));
+                    paint_on_top_of(&mut self.staged, staged);
+                    if let Some(rendered_cursor_position) = rendered_cursor_position {
+                        if self.rendered_cursor_position.is_some() {
+                            return Err(Error::RenderedCursorMoreThanOnce);
+                        }
+                        self.rendered_cursor_position = Some(rendered_cursor_position);
+                    }
+                }
                 if let Some(cursor) = flex_column.cursor {
                     self.render_cursor(cursor)?;
                 }
