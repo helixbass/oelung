@@ -10,7 +10,7 @@ use crossterm::{
     terminal::{Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 use smol_str::{SmolStr, ToSmolStr};
 use squalid::{EverythingExt, _d};
 use tracing::instrument;
@@ -46,8 +46,8 @@ impl Renderer {
             rendered_cursor_position_in_this_render: _d(),
             last_rendered_grid_index: _d(),
             grids: [
-                vec![vec![default_grid_row.clone()]; usize::from(size.height)],
-                vec![vec![default_grid_row]; usize::from(size.height)],
+                smallvec![smallvec![default_grid_row.clone()]; usize::from(size.height)],
+                smallvec![smallvec![default_grid_row]; usize::from(size.height)],
             ],
         })
     }
@@ -319,7 +319,7 @@ impl RenderingContext {
                     self.staged.extend(staged);
                     if num_less_rendered_vs_height > 0 {
                         self.staged
-                            .extend(iter::repeat(vec![]).take(num_less_rendered_vs_height));
+                            .extend(iter::repeat(smallvec![]).take(num_less_rendered_vs_height));
                     }
                     num_rows_rendered += height;
                     if let Some(rendered_cursor_position) = rendered_cursor_position {
@@ -614,7 +614,7 @@ fn paint_on_top_of(onto: &mut Staged, from: Staged) {
                                 let next_old_chunk_len = next_old_chunk.str.len();
                                 let end_byte_of_next_old_row_chunk =
                                     num_bytes_fully_past_in_old_row + next_old_chunk_len;
-                                match end_byte_of_next_old_row_chunk.cmp(end_byte_of_new_chunk) {
+                                match end_byte_of_next_old_row_chunk.cmp(&end_byte_of_new_chunk) {
                                     Ordering::Equal => {
                                         new_row.push(StyledChunk {
                                             str: match num_bytes_already_printed_in_this_new_chunk {
