@@ -543,7 +543,44 @@ fn paint_on_top_of(onto: &mut Staged, from: Staged) {
                             }
                         };
                     }
-                    None => {}
+                    None => {
+                        let mut num_bytes_already_printed_in_this_new_chunk = 0;
+                        match progress_in_old_row {
+                            None => {
+                                let next_old_row_index = 0;
+                                let Some(next_old_chunk) = onto[row_index].get(next_old_row_index)
+                                else {
+                                    new_row.push(chunk);
+                                    break 'chunk;
+                                };
+                                let next_old_chunk_len = next_old_chunk.str.len();
+                                let end_byte_of_next_old_row_chunk =
+                                    num_bytes_fully_past_in_old_row + next_old_chunk_len;
+                                match end_byte_of_next_old_row_chunk.cmp(end_byte_of_new_chunk) {
+                                    Ordering::Equal => {
+                                        progress_in_old_row =
+                                            Some(ProgressInOldRow::FullyPast(next_old_row_index));
+                                        num_bytes_fully_past_in_old_row += next_old_chunk_len;
+                                        new_row.push(StyledChunk {
+                                            str: match num_bytes_already_printed_in_this_new_chunk {
+                                                0 => chunk.str,
+                                                _ => chunk.str
+                                                    [num_bytes_already_printed_in_this_new_chunk..]
+                                                    .to_smolstr(),
+                                            },
+                                            style: Style {
+                                                color: chunk.style.color,
+                                                background_color: next_old_chunk
+                                                    .style
+                                                    .background_color,
+                                            },
+                                        });
+                                        break 'chunk;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             num_bytes_already_seen_in_new_row += chunk_len;
