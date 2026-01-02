@@ -483,6 +483,7 @@ impl StyledChunk {
 }
 
 fn paint_on_top_of(onto: &mut Staged, from: Staged) {
+    // eprintln!("onto: {:#?}, from : {:#?}", onto, from);
     for (row_index, row) in from.into_iter().enumerate() {
         // let onto_row = &mut onto[row_index];
         let mut new_row: SmallVec<StyledChunk, 10> = _d();
@@ -689,6 +690,26 @@ fn paint_on_top_of(onto: &mut Staged, from: Staged) {
                 }
             }
             num_bytes_already_seen_in_new_row += chunk_len;
+        }
+        match progress_in_old_row {
+            None => {
+                onto[row_index] = new_row;
+            }
+            Some(ProgressInOldRow::FullyPast(old_row_index)) => {
+                onto[row_index].splice(..=old_row_index, new_row);
+            }
+            Some(ProgressInOldRow::InProgress(old_row_index)) => {
+                let in_progress_old_row_chunk = &onto[row_index][old_row_index];
+                let in_progress_old_row_chunk_num_bytes_already_done =
+                    num_bytes_already_seen_in_new_row - num_bytes_fully_past_in_old_row;
+                new_row.push(StyledChunk {
+                    str: in_progress_old_row_chunk.str
+                        [in_progress_old_row_chunk_num_bytes_already_done..]
+                        .to_smolstr(),
+                    style: in_progress_old_row_chunk.style,
+                });
+                onto[row_index].splice(..=old_row_index, new_row);
+            }
         }
     }
 }
