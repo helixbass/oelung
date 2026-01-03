@@ -4,7 +4,7 @@ use squalid::{OptionExtDefault, _d};
 use syn::{
     bracketed, parenthesized,
     parse::{Parse, ParseStream, Result},
-    parse_macro_input, Expr, Ident, LessThanBinaryExpr, LitFloat, LitInt, LitStr, Token,
+    parse_macro_input, token, Expr, Ident, LessThanBinaryExpr, LitFloat, LitInt, LitStr, Token,
 };
 
 mod custom_keywords {
@@ -89,7 +89,7 @@ impl ToTokens for Element {
 }
 
 struct FlexColumn {
-    pub children: Vec<Element>,
+    pub children: VecElementOrExpr,
     pub flex_grow: Option<LitFloatOrInt>,
     pub cursor: Option<Cursor>,
     pub relative: Option<Expr>,
@@ -97,7 +97,7 @@ struct FlexColumn {
 
 impl Parse for FlexColumn {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut children: Option<Vec<Element>> = _d();
+        let mut children: Option<VecElementOrExpr> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
         let mut cursor: Option<Cursor> = _d();
         let mut relative: Option<Expr> = _d();
@@ -131,13 +131,7 @@ impl Parse for FlexColumn {
                         match &*key {
                             "children" => {
                                 assert!(children.is_none(), "Already saw 'children' key");
-                                let children_content;
-                                bracketed!(children_content in input);
-                                let children = children.populate_default();
-                                while !children_content.is_empty() {
-                                    children.push(children_content.parse()?);
-                                    children_content.parse::<Option<Token![,]>>()?;
-                                }
+                                children = Some(input.parse()?);
                             }
                             "flex_grow" => {
                                 assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
@@ -181,15 +175,7 @@ impl Parse for FlexColumn {
 
 impl ToTokens for FlexColumn {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let children = self
-            .children
-            .iter()
-            .map(|child| {
-                quote! {
-                    .child(#child)
-                }
-            })
-            .collect::<Vec<_>>();
+        let children = &self.children;
         let flex_grow = match self.flex_grow.as_ref() {
             None => quote! {},
             Some(flex_grow) => quote! {
@@ -211,7 +197,7 @@ impl ToTokens for FlexColumn {
 
         quote! {
             ::oelung::FlexColumnBuilder::default()
-                #(#children)*
+                .children(#children)
                 #flex_grow
                 #cursor
                 #relative
@@ -652,6 +638,39 @@ impl ToTokens for LitIntOrExpr {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
             Self::LitInt(int) => quote! { #int },
+            Self::Expr(expr) => quote! { #expr },
+        }
+        .to_tokens(tokens)
+    }
+}
+
+enum VecElementOrExpr {
+    VecElement(Vec<Element>),
+    Expr(Expr),
+}
+
+impl Parse for VecElementOrExpr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(match input.peek(token::Bracket) {
+            true => {
+                let bracketed_content;
+                bracketed!(bracketed_content in input);
+                let mut items = vec![];
+                while !bracketed_content.is_empty() {
+                    items.push(bracketed_content.parse()?);
+                    bracketed_content.parse::<Option<Token![,]>>()?;
+                }
+                Self::VecElement(items)
+            }
+            false => Self::Expr(input.parse::<LessThanBinaryExpr>()?.expr),
+        })
+    }
+}
+
+impl ToTokens for VecElementOrExpr {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::VecElement(items) => quote! { vec![#(#items),*] },
             Self::Expr(expr) => quote! { #expr },
         }
         .to_tokens(tokens)

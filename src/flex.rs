@@ -20,11 +20,25 @@ pub struct FlexColumnBuilder<'a> {
     pub flex_grow: Option<f64>,
     pub relative: Option<Relative>,
     pub cursor: Option<Cursor>,
+    pub has_called_children: bool,
 }
 
 impl<'a> FlexColumnBuilder<'a> {
     pub fn child(mut self, child: impl Into<Component<'a>>) -> Self {
+        if self.has_called_children {
+            panic!("Can't use both `.children()` and `.child()`");
+        }
         self.children.push(child.into());
+        self
+    }
+
+    pub fn children(mut self, children: Vec<Component<'a>>) -> Self {
+        assert!(
+            self.children.is_empty(),
+            "Can't use both `.children()` and `.child()`"
+        );
+        self.children = children;
+        self.has_called_children = true;
         self
     }
 
