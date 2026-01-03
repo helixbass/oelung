@@ -266,29 +266,47 @@ impl RenderingContext {
                 assert!(
                     non_absolute_children
                         .iter()
-                        .filter(|child| {
-                            child.flex_grow() == Some(1.0) && child.height().is_none()
-                        })
+                        .filter(|child| { child.flex_grow().is_some() && child.height().is_none() })
                         .count()
                         <= 1
                 );
-                assert!(non_absolute_children.iter().all(|child| {
-                    child.flex_grow() == Some(1.0) && child.height().is_none()
-                        || child.flex_grow() == None && child.height().is_some()
-                }));
-                let fixed_children_total_height =
-                    non_absolute_children
-                        .iter()
-                        .fold(0, |accum, child| match child.height() {
-                            None => accum,
-                            Some(height) => accum + height,
-                        });
+                let flex_grow_child_position = non_absolute_children
+                    .iter()
+                    .position(|child| child.flex_grow().is_some() && child.height().is_none());
+                let has_any_natural_height_children = non_absolute_children
+                    .iter()
+                    .any(|child| child.flex_grow().is_none() && child.height().is_none());
+                if matches!(
+                    flex_grow_child_position,
+                    Some(flex_grow_child_position) if flex_grow_child_position != non_absolute_children.len() - 1
+                ) {
+                    assert!(!has_any_natural_height_children);
+                }
                 let mut num_rows_rendered = 0;
-                for child in &non_absolute_children {
+                for (child_index, child) in non_absolute_children.iter().enumerate() {
                     let height = if let Some(height) = child.height() {
+                        assert!(child.flex_grow().is_none());
                         height
+                    } else if let Some(flex_grow) = child.flex_grow() {
+                        assert_eq!(flex_grow, 1.0);
+                        assert!(child.height().is_none());
+                        match has_any_natural_height_children {
+                            true => {
+                                assert!(child_index == non_absolute_children.len() - 1);
+                                self.grid.height - num_rows_rendered
+                            }
+                            false => {
+                                let fixed_children_total_height = non_absolute_children
+                                    .iter()
+                                    .fold(0, |accum, child| match child.height() {
+                                        None => accum,
+                                        Some(height) => accum + height,
+                                    });
+                                self.grid.height - fixed_children_total_height
+                            }
+                        }
                     } else {
-                        self.grid.height - fixed_children_total_height
+                        self.grid.height - num_rows_rendered
                     };
                     let grid = Grid {
                         left: self.grid.left,
@@ -317,7 +335,9 @@ impl RenderingContext {
                     assert!(staged.len() <= usize::from(height));
                     let num_less_rendered_vs_height = usize::from(height) - staged.len();
                     self.staged.extend(staged);
-                    if num_less_rendered_vs_height > 0 {
+                    if !(child.height().is_none() && child.flex_grow().is_none())
+                        && num_less_rendered_vs_height > 0
+                    {
                         self.staged
                             .extend(iter::repeat(smallvec![]).take(num_less_rendered_vs_height));
                     }
@@ -329,7 +349,7 @@ impl RenderingContext {
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
                 }
-                if num_rows_rendered < self.grid.height {
+                if flex_column.flex_grow().is_some() && num_rows_rendered < self.grid.height {
                     self.staged.extend(
                         iter::repeat(smallvec![])
                             .take(usize::from(self.grid.height - num_rows_rendered)),
