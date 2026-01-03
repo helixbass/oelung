@@ -19,3 +19,8 @@ impl<'a> Absolute<'a> {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum Overflow {
+    Hidden,
+}

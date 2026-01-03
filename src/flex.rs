@@ -1,4 +1,4 @@
-use crate::{Component, Cursor, Error, Relative};
+use crate::{Component, Cursor, Error, Overflow, Relative};
 
 #[derive(Clone)]
 pub struct FlexColumn<'a> {
@@ -6,6 +6,7 @@ pub struct FlexColumn<'a> {
     pub flex_grow: Option<f64>,
     pub relative: Option<Relative>,
     pub cursor: Option<Cursor>,
+    pub overflow_y: Option<Overflow>,
 }
 
 impl<'a> FlexColumn<'a> {
@@ -20,6 +21,7 @@ pub struct FlexColumnBuilder<'a> {
     pub flex_grow: Option<f64>,
     pub relative: Option<Relative>,
     pub cursor: Option<Cursor>,
+    pub overflow_y: Option<Overflow>,
     pub has_called_children: bool,
 }
 
@@ -57,6 +59,11 @@ impl<'a> FlexColumnBuilder<'a> {
         self
     }
 
+    pub fn overflow_y(mut self, overflow_y: Overflow) -> Self {
+        self.overflow_y = Some(overflow_y);
+        self
+    }
+
     pub fn build(self) -> Result<FlexColumn<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::FlexColumnBuilder("empty children".into()));
@@ -66,6 +73,7 @@ impl<'a> FlexColumnBuilder<'a> {
             flex_grow: self.flex_grow,
             relative: self.relative,
             cursor: self.cursor,
+            overflow_y: self.overflow_y,
         })
     }
 }

@@ -93,6 +93,7 @@ struct FlexColumn {
     pub flex_grow: Option<LitFloatOrInt>,
     pub cursor: Option<Cursor>,
     pub relative: Option<Expr>,
+    pub overflow_y: Option<Overflow>,
 }
 
 impl Parse for FlexColumn {
@@ -101,6 +102,7 @@ impl Parse for FlexColumn {
         let mut flex_grow: Option<LitFloatOrInt> = _d();
         let mut cursor: Option<Cursor> = _d();
         let mut relative: Option<Expr> = _d();
+        let mut overflow_y: Option<Overflow> = _d();
 
         let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
         let me_percent_sign_row = illicit::expect::<MePercentSignRow>();
@@ -145,6 +147,10 @@ impl Parse for FlexColumn {
                                 assert!(relative.is_none(), "Already saw 'relative' key");
                                 relative = Some(input.parse::<LessThanBinaryExpr>()?.expr);
                             }
+                            "overflow_y" => {
+                                assert!(overflow_y.is_none(), "Already saw 'overflow_y' key");
+                                overflow_y = Some(input.parse()?);
+                            }
                             key => return Err(input.error(format!("Unexpected key `{key}`"))),
                         }
 
@@ -169,6 +175,7 @@ impl Parse for FlexColumn {
             flex_grow,
             cursor,
             relative,
+            overflow_y,
         })
     }
 }
@@ -194,6 +201,12 @@ impl ToTokens for FlexColumn {
                 .relative(#relative)
             },
         };
+        let overflow_y = match self.overflow_y.as_ref() {
+            None => quote! {},
+            Some(overflow_y) => quote! {
+                .overflow_y(#overflow_y)
+            },
+        };
 
         quote! {
             ::oelung::FlexColumnBuilder::default()
@@ -201,6 +214,7 @@ impl ToTokens for FlexColumn {
                 #flex_grow
                 #cursor
                 #relative
+                #overflow_y
                 .build()?
         }
         .to_tokens(tokens)
@@ -566,6 +580,32 @@ impl ToTokens for Color {
         match self {
             Self::Ansi(ansi) => quote! {
                 ::oelung::crossterm::style::Color::AnsiValue(#ansi)
+            },
+        }
+        .to_tokens(tokens)
+    }
+}
+
+enum Overflow {
+    Hidden,
+}
+
+impl Parse for Overflow {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let name: Ident = input.parse()?;
+        if name.to_string() != "hidden" {
+            return Err(input.error(format!("Expected 'hidden'")));
+        }
+
+        Ok(Self::Hidden)
+    }
+}
+
+impl ToTokens for Overflow {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::Hidden => quote! {
+                ::oelung::Overflow::Hidden
             },
         }
         .to_tokens(tokens)
