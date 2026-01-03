@@ -244,19 +244,12 @@ impl RenderingContext {
 
     #[instrument(level = "trace", skip(self, component))]
     pub fn render(&mut self, component: &Component) -> Result<(), Error> {
-        eprintln!("RenderingContext.render()");
         match component {
             Component::Text(text) => {
-                eprintln!("whoo 1");
                 self.staged.push(_d());
                 self.render_text(text, 0, self.style)?;
             }
             Component::FlexColumn(flex_column) => {
-                eprintln!(
-                    "whoo 2, children: {:#?}, self grid height: {:#?}",
-                    flex_column.children.len(),
-                    self.grid.height
-                );
                 let (absolute_children, non_absolute_children) = flex_column
                     .children
                     .iter()
@@ -298,13 +291,10 @@ impl RenderingContext {
                 }
                 let mut num_rows_rendered = 0;
                 for (child_index, child) in non_absolute_children.iter().enumerate() {
-                    eprintln!("each child start self staged: {:#?}, num_rows_rendered: {num_rows_rendered:#?}", self.staged);
                     let height = if let Some(height) = child.height() {
-                        eprintln!("here 1");
                         assert!(child.flex_grow().is_none());
                         height
                     } else if let Some(flex_grow) = child.flex_grow() {
-                        eprintln!("here 2");
                         assert_eq!(flex_grow, 1.0);
                         assert!(child.height().is_none());
                         match has_any_natural_height_children {
@@ -323,7 +313,6 @@ impl RenderingContext {
                             }
                         }
                     } else {
-                        eprintln!("here 3");
                         self.grid.height - num_rows_rendered
                     };
                     let grid = Grid {
@@ -364,12 +353,6 @@ impl RenderingContext {
                         }
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
-                    eprintln!(
-                        "child here: {:#?}, height: {:#?}, staged: {:#?}",
-                        matches!(child, Component::Text(_)),
-                        height,
-                        staged
-                    );
                     assert!(staged.len() <= usize::from(height));
                     let staged_len = u16::try_from(staged.len()).unwrap();
                     if num_rows_rendered + staged_len > self.grid.height {
@@ -560,9 +543,7 @@ impl StyledChunk {
 }
 
 fn paint_on_top_of(onto: &mut Staged, from: Staged) {
-    // eprintln!("onto: {:#?}, from : {:#?}", onto, from);
     for (row_index, row) in from.into_iter().enumerate() {
-        // let onto_row = &mut onto[row_index];
         let mut new_row: SmallVec<StyledChunk, 10> = _d();
         #[derive(Copy, Clone)]
         enum ProgressInOldRow {
