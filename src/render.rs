@@ -244,12 +244,19 @@ impl RenderingContext {
 
     #[instrument(level = "trace", skip(self, component))]
     pub fn render(&mut self, component: &Component) -> Result<(), Error> {
+        eprintln!("RenderingContext.render()");
         match component {
             Component::Text(text) => {
+                eprintln!("whoo 1");
                 self.staged.push(_d());
                 self.render_text(text, 0, self.style)?;
             }
             Component::FlexColumn(flex_column) => {
+                eprintln!(
+                    "whoo 2, children: {:#?}, self grid height: {:#?}",
+                    flex_column.children.len(),
+                    self.grid.height
+                );
                 let (absolute_children, non_absolute_children) = flex_column
                     .children
                     .iter()
@@ -291,6 +298,7 @@ impl RenderingContext {
                 }
                 let mut num_rows_rendered = 0;
                 for (child_index, child) in non_absolute_children.iter().enumerate() {
+                    eprintln!("each child start self staged: {:#?}, num_rows_rendered: {num_rows_rendered:#?}", self.staged);
                     let height = if let Some(height) = child.height() {
                         eprintln!("here 1");
                         assert!(child.flex_grow().is_none());
@@ -360,11 +368,11 @@ impl RenderingContext {
                         "child here: {:#?}, height: {:#?}, staged: {:#?}",
                         matches!(child, Component::Text(_)),
                         height,
-                        staged.len()
+                        staged
                     );
                     assert!(staged.len() <= usize::from(height));
-                    let num_less_rendered_vs_height = usize::from(height) - staged.len();
-                    if num_rows_rendered + height > self.grid.height {
+                    let staged_len = u16::try_from(staged.len()).unwrap();
+                    if num_rows_rendered + staged_len > self.grid.height {
                         match is_in_overflow_hidden_mode {
                             true => {
                                 self.staged.extend(
@@ -378,19 +386,25 @@ impl RenderingContext {
                             false => panic!("tried to render more than allotted height"),
                         }
                     }
-                    if num_rows_rendered + height == self.grid.height && is_in_overflow_hidden_mode
+                    self.staged.extend(staged);
+                    if num_rows_rendered + staged_len == self.grid.height
+                        && is_in_overflow_hidden_mode
                     {
                         num_rows_rendered = self.grid.height;
                         break;
                     }
-                    self.staged.extend(staged);
+                    let num_less_rendered_vs_height = height - staged_len;
                     if !(child.height().is_none() && child.flex_grow().is_none())
                         && num_less_rendered_vs_height > 0
                     {
-                        self.staged
-                            .extend(iter::repeat(smallvec![]).take(num_less_rendered_vs_height));
+                        self.staged.extend(
+                            iter::repeat(smallvec![])
+                                .take(usize::from(num_less_rendered_vs_height)),
+                        );
+                        num_rows_rendered += height;
+                    } else {
+                        num_rows_rendered += staged_len;
                     }
-                    num_rows_rendered += height;
                 }
                 if flex_column.flex_grow().is_some() && num_rows_rendered < self.grid.height {
                     self.staged.extend(
