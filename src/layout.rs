@@ -20,7 +20,7 @@ impl<'a> Absolute<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Overflow {
     Hidden,
 }

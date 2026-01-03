@@ -75,7 +75,7 @@ impl Renderer {
             component_holder.render_most_recent_and_push(grid)?;
         }
 
-        let mut rendering_context = RenderingContext::new(grid, style);
+        let mut rendering_context = RenderingContext::new(grid, style, false);
         rendering_context.render(component_holder.get_most_recent())?;
         let RenderingContext {
             staged,
@@ -228,15 +228,17 @@ pub struct RenderingContext {
     pub staged: Staged,
     pub rendered_cursor_position: Option<Position>,
     pub style: Style,
+    pub is_in_overflow_hidden_mode: bool,
 }
 
 impl RenderingContext {
-    pub fn new(grid: Grid, style: Style) -> Self {
+    pub fn new(grid: Grid, style: Style, is_in_overflow_hidden_mode: bool) -> Self {
         Self {
             grid,
             staged: _d(),
             rendered_cursor_position: _d(),
             style,
+            is_in_overflow_hidden_mode,
         }
     }
 
@@ -282,12 +284,19 @@ impl RenderingContext {
                 ) {
                     assert!(!has_any_natural_height_children);
                 }
+                let is_in_overflow_hidden_mode = self.is_in_overflow_hidden_mode
+                    || flex_column.overflow_y == Some(Overflow::Hidden);
+                if is_in_overflow_hidden_mode {
+                    assert!(flex_grow_child_position.is_none());
+                }
                 let mut num_rows_rendered = 0;
                 for (child_index, child) in non_absolute_children.iter().enumerate() {
                     let height = if let Some(height) = child.height() {
+                        eprintln!("here 1");
                         assert!(child.flex_grow().is_none());
                         height
                     } else if let Some(flex_grow) = child.flex_grow() {
+                        eprintln!("here 2");
                         assert_eq!(flex_grow, 1.0);
                         assert!(child.height().is_none());
                         match has_any_natural_height_children {
@@ -306,6 +315,7 @@ impl RenderingContext {
                             }
                         }
                     } else {
+                        eprintln!("here 3");
                         self.grid.height - num_rows_rendered
                     };
                     let grid = Grid {
@@ -314,7 +324,15 @@ impl RenderingContext {
                         width: self.grid.width,
                         height,
                     };
-                    let mut rendering_context = RenderingContext::new(grid, self.style);
+                    let mut rendering_context = RenderingContext::new(
+                        grid,
+                        self.style,
+                        if child.height().is_some() {
+                            false
+                        } else {
+                            is_in_overflow_hidden_mode
+                        },
+                    );
 
                     if matches!(child, Component::Component(_)) {
                         let component_holder = ComponentHolder::default();
@@ -338,11 +356,17 @@ impl RenderingContext {
                         }
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
+                    eprintln!(
+                        "child here: {:#?}, height: {:#?}, staged: {:#?}",
+                        matches!(child, Component::Text(_)),
+                        height,
+                        staged.len()
+                    );
                     assert!(staged.len() <= usize::from(height));
                     let num_less_rendered_vs_height = usize::from(height) - staged.len();
                     if num_rows_rendered + height > self.grid.height {
-                        match flex_column.overflow_y {
-                            Some(Overflow::Hidden) => {
+                        match is_in_overflow_hidden_mode {
+                            true => {
                                 self.staged.extend(
                                     staged
                                         .into_iter()
@@ -351,8 +375,13 @@ impl RenderingContext {
                                 num_rows_rendered = self.grid.height;
                                 break;
                             }
-                            None => panic!("tried to render more than allotted height"),
+                            false => panic!("tried to render more than allotted height"),
                         }
+                    }
+                    if num_rows_rendered + height == self.grid.height && is_in_overflow_hidden_mode
+                    {
+                        num_rows_rendered = self.grid.height;
+                        break;
                     }
                     self.staged.extend(staged);
                     if !(child.height().is_none() && child.flex_grow().is_none())
@@ -374,7 +403,7 @@ impl RenderingContext {
                 }
                 for child in &absolute_children {
                     let grid = self.grid;
-                    let mut rendering_context = RenderingContext::new(grid, self.style);
+                    let mut rendering_context = RenderingContext::new(grid, self.style, false);
                     let child = &child.content;
 
                     if matches!(&**child, Component::Component(_)) {
