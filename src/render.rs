@@ -16,7 +16,7 @@ use squalid::{EverythingExt, _d};
 use tracing::instrument;
 
 use crate::{
-    size, take_over_screen, Component, Cursor, Error, Offset, Relative, Size, Style,
+    size, take_over_screen, Component, Cursor, Error, Offset, Overflow, Relative, Size, Style,
     TakeOverScreenGuard, Text, TextChild,
 };
 
@@ -332,8 +332,28 @@ impl RenderingContext {
                         rendered_cursor_position,
                         ..
                     } = rendering_context;
+                    if let Some(rendered_cursor_position) = rendered_cursor_position {
+                        if self.rendered_cursor_position.is_some() {
+                            return Err(Error::RenderedCursorMoreThanOnce);
+                        }
+                        self.rendered_cursor_position = Some(rendered_cursor_position);
+                    }
                     assert!(staged.len() <= usize::from(height));
                     let num_less_rendered_vs_height = usize::from(height) - staged.len();
+                    if num_rows_rendered + height > self.grid.height {
+                        match flex_column.overflow_y {
+                            Some(Overflow::Hidden) => {
+                                self.staged.extend(
+                                    staged
+                                        .into_iter()
+                                        .take(usize::from(self.grid.height - num_rows_rendered)),
+                                );
+                                num_rows_rendered = self.grid.height;
+                                break;
+                            }
+                            None => panic!("tried to render more than allotted height"),
+                        }
+                    }
                     self.staged.extend(staged);
                     if !(child.height().is_none() && child.flex_grow().is_none())
                         && num_less_rendered_vs_height > 0
@@ -342,12 +362,6 @@ impl RenderingContext {
                             .extend(iter::repeat(smallvec![]).take(num_less_rendered_vs_height));
                     }
                     num_rows_rendered += height;
-                    if let Some(rendered_cursor_position) = rendered_cursor_position {
-                        if self.rendered_cursor_position.is_some() {
-                            return Err(Error::RenderedCursorMoreThanOnce);
-                        }
-                        self.rendered_cursor_position = Some(rendered_cursor_position);
-                    }
                 }
                 if flex_column.flex_grow().is_some() && num_rows_rendered < self.grid.height {
                     self.staged.extend(
