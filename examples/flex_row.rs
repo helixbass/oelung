@@ -36,6 +36,7 @@ fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
     //         ]
     //         flex_grow => 1
     //     ]
+    //     flex_grow => 1
     // })?;
     renderer.render(
         oelung::FlexRowBuilder::default()
@@ -59,6 +60,7 @@ fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
                       flex_grow => 1
                 },
             ])
+            .flex_grow(1)
             .build()
             .unwrap()
             .into(),
