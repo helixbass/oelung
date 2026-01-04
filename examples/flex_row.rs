@@ -18,53 +18,26 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
-    // renderer.render(soft! {
-    //   %FlexRow
-    //     children => [
-    //       %FlexColumn
-    //         children => [
-    //           %Text
-    //             text => "Left half"
-    //             cursor => %Cursor.Relative
-    //               x => 0
-    //               y => 0
-    //         ]
-    //         flex_grow => 1
-    //       %FlexColumn
-    //         children => [
-    //           %Text "Right half"
-    //         ]
-    //         flex_grow => 1
-    //     ]
-    //     flex_grow => 1
-    // })?;
-    renderer.render(
-        oelung::FlexRowBuilder::default()
-            .children(vec![
-                soft! {
-                    %FlexColumn
-                      children => [
-                        %Text
-                          text => "Left half"
-                          cursor => %Cursor.Relative
-                            x => 0
-                            y => 0
-                      ]
-                      flex_grow => 1
-                },
-                soft! {
-                    %FlexColumn
-                      children => [
-                        %Text "Right half"
-                      ]
-                      flex_grow => 1
-                },
-            ])
-            .flex_grow(1)
-            .build()
-            .unwrap()
-            .into(),
-    )?;
+    renderer.render(soft! {
+      %FlexRow
+        children => [
+          %FlexColumn
+            children => [
+              %Text
+                text => "Left half"
+                cursor => %Cursor.Relative
+                  x => 0
+                  y => 0
+            ]
+            flex_grow => 1
+          %FlexColumn
+            children => [
+              %Text "Right half"
+            ]
+            flex_grow => 1
+        ]
+        flex_grow => 1
+    })?;
 
     Ok(())
 }

@@ -330,7 +330,7 @@ impl ToTokens for FlexRow {
         };
 
         quote! {
-            ::oelung::FlexColumnBuilder::default()
+            ::oelung::FlexRowBuilder::default()
                 .children(#children)
                 #flex_grow
                 #cursor
