@@ -10,6 +10,7 @@ use crossterm::{
     terminal::{Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
+use itertools::{EitherOrBoth, Itertools};
 use smallvec::{smallvec, SmallVec};
 use smol_str::{SmolStr, ToSmolStr};
 use squalid::{EverythingExt, _d};
@@ -429,6 +430,106 @@ impl RenderingContext {
                     }
                 }
                 if let Some(cursor) = flex_column.cursor {
+                    self.render_cursor(cursor)?;
+                }
+            }
+            Component::FlexRow(flex_row) => {
+                assert!(flex_row
+                    .children
+                    .iter()
+                    .all(|child| !matches!(child, Component::Absolute(_))));
+                assert!(flex_row
+                    .children
+                    .iter()
+                    .all(|child| { child.flex_grow() == Some(1.0) }));
+                let mut num_columns_rendered = 0;
+                let mut results: SmallVec<SmallVec<(SmallVec<StyledChunk, 10>, u16), 10>, 10> =
+                    _d();
+                for (child_index, child) in flex_row.children.iter().enumerate() {
+                    let width = self.grid.width / flex_row.children.len();
+                    let grid = Grid {
+                        left: self.grid.left + num_columns_rendered,
+                        top: self.grid.top,
+                        width,
+                        height: self.grid.height,
+                    };
+                    let mut rendering_context = RenderingContext::new(grid, self.style, false);
+
+                    if matches!(child, Component::Component(_)) {
+                        let component_holder = ComponentHolder::default();
+                        component_holder.push(child.as_component().render(grid)?);
+                        while matches!(component_holder.get_most_recent(), Component::Component(_))
+                        {
+                            component_holder.render_most_recent_and_push(grid)?;
+                        }
+                        rendering_context.render(component_holder.get_most_recent())?;
+                    } else {
+                        rendering_context.render(child)?;
+                    };
+                    let RenderingContext {
+                        staged,
+                        rendered_cursor_position,
+                        ..
+                    } = rendering_context;
+                    if let Some(rendered_cursor_position) = rendered_cursor_position {
+                        if self.rendered_cursor_position.is_some() {
+                            return Err(Error::RenderedCursorMoreThanOnce);
+                        }
+                        self.rendered_cursor_position = Some(rendered_cursor_position);
+                    }
+                    assert!(staged.len() <= usize::from(self.grid.height));
+                    for row_num_and_staged_row in
+                        (0..self.grid.height).into_iter().zip_longest(staged)
+                    {
+                        match row_num_and_staged_row {
+                            EitherOrBoth::Both(_row_num, staged_row) => {
+                                results.push((staged_row, width));
+                            }
+                            EitherOrBoth::Left(_row_num) => {
+                                results.push((_d(), width));
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                }
+                assert!(flex_row.flex_grow() == Some(1.0));
+                for result_row in results {
+                    self.staged.push('outer: {
+                        let new_staged_row: SmallVec<StyledChunk, _> = _d();
+                        let has_anything_to_print_in_this_staged_row = result_row
+                            .iter()
+                            .any(|(horizontal_chunk, _)| !horizontal_chunk.is_empty());
+                        if !has_anything_to_print_in_this_staged_row {
+                            break 'outer _d();
+                        }
+                        let last_horizontal_chunk_index_with_anything_to_print = 'print: {
+                            for horizontal_chunk_index in (0..result_row.len()).rev() {
+                                if !result_row[horizontal_chunk_index].0.is_empty() {
+                                    break 'print horizontal_chunk_index;
+                                }
+                            }
+                            panic!("already expected to find something to print in this result row")
+                        };
+                        for (horizontal_chunk, allocated_width) in result_row {
+                            let mut num_bytes_printed_in_horizontal_chunk = 0;
+                            for styled_chunk in horizontal_chunk {
+                                let styled_chunk_len = styled_chunk.str.len();
+                                new_staged_row.push(styled_chunk);
+                                num_bytes_printed_in_horizontal_chunk += styled_chunk_len;
+                                if num_bytes_printed_in_horizontal_chunk
+                                    > usize::from(allocated_width)
+                                {
+                                    panic!("flex row horizontal chunk exceeded allocated width");
+                                }
+                            }
+                            if num_bytes_printed_in_horizontal_chunk < usize::from(allocated_width)
+                            {
+                            }
+                        }
+                        new_staged_row
+                    });
+                }
+                if let Some(cursor) = flex_row.cursor {
                     self.render_cursor(cursor)?;
                 }
             }
