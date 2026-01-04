@@ -9,6 +9,7 @@ use syn::{
 
 mod custom_keywords {
     syn::custom_keyword!(FlexColumn);
+    syn::custom_keyword!(FlexRow);
     syn::custom_keyword!(Text);
     syn::custom_keyword!(Absolute);
     syn::custom_keyword!(children);
@@ -16,6 +17,7 @@ mod custom_keywords {
 
 enum Element {
     FlexColumn(FlexColumn),
+    FlexRow(FlexRow),
     Text(Text),
     Absolute(Absolute),
     Component(Expr),
@@ -37,6 +39,15 @@ impl Parse for Element {
                             .offer(MePercentSignStartColumn(me_percent_sign_start_column))
                             .offer(MePercentSignRow(me_percent_sign_row))
                             .enter(|| -> Result<FlexColumn> { Ok(input.parse()?) })?,
+                    )
+                } else if input.peek(custom_keywords::FlexRow) {
+                    let name: Ident = input.parse().unwrap();
+                    assert_eq!(name.to_string(), "FlexRow");
+                    Self::FlexRow(
+                        illicit::Layer::new()
+                            .offer(MePercentSignStartColumn(me_percent_sign_start_column))
+                            .offer(MePercentSignRow(me_percent_sign_row))
+                            .enter(|| -> Result<FlexRow> { Ok(input.parse()?) })?,
                     )
                 } else if input.peek(custom_keywords::Text) {
                     let name: Ident = input.parse().unwrap();
@@ -74,6 +85,9 @@ impl ToTokens for Element {
         match self {
             Self::FlexColumn(flex_column) => {
                 quote! { ::oelung::Component::FlexColumn(#flex_column) }
+            }
+            Self::FlexRow(flex_row) => {
+                quote! { ::oelung::Component::FlexRow(#flex_row) }
             }
             Self::Text(text) => quote! { ::oelung::Component::Text(#text) },
             Self::Absolute(absolute) => quote! { ::oelung::Component::Absolute(#absolute) },
@@ -215,6 +229,111 @@ impl ToTokens for FlexColumn {
                 #cursor
                 #relative
                 #overflow_y
+                .build()?
+        }
+        .to_tokens(tokens)
+    }
+}
+
+struct FlexRow {
+    pub children: VecElementOrExpr,
+    pub flex_grow: Option<LitFloatOrInt>,
+    pub cursor: Option<Cursor>,
+}
+
+impl Parse for FlexRow {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut children: Option<VecElementOrExpr> = _d();
+        let mut flex_grow: Option<LitFloatOrInt> = _d();
+        let mut cursor: Option<Cursor> = _d();
+
+        let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
+        let me_percent_sign_row = illicit::expect::<MePercentSignRow>();
+        let parent_percent_sign_start_column = illicit::get::<ParentPercentSignStartColumn>().ok();
+        let parent_enclosing_attribute_start_column =
+            illicit::get::<ParentEnclosingAttributeStartColumn>().ok();
+        illicit::hide::<MePercentSignStartColumn>();
+        illicit::hide::<MePercentSignRow>();
+        illicit::hide::<ParentEnclosingAttributeStartColumn>();
+        let smallest_allowed_column = parent_enclosing_attribute_start_column
+            .as_ref()
+            .map(|parent_enclosing_attribute_start_column| {
+                parent_enclosing_attribute_start_column.0 + 1
+            })
+            .or_else(|| {
+                parent_percent_sign_start_column
+                    .as_ref()
+                    .map(|parent_percent_sign_start_column| parent_percent_sign_start_column.0 + 1)
+            })
+            .unwrap_or(me_percent_sign_start_column.0);
+        illicit::Layer::new()
+            .offer(ParentPercentSignStartColumn(me_percent_sign_start_column.0))
+            .enter(|| -> Result<()> {
+                while input.peek(Ident) && input.span().start().column >= smallest_allowed_column {
+                    let mut parse_attribute = || -> Result<()> {
+                        let key = input.parse::<Ident>().unwrap().to_string();
+                        input.parse::<Token![=>]>()?;
+                        match &*key {
+                            "children" => {
+                                assert!(children.is_none(), "Already saw 'children' key");
+                                children = Some(input.parse()?);
+                            }
+                            "flex_grow" => {
+                                assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
+                                flex_grow = Some(input.parse()?);
+                            }
+                            "cursor" => {
+                                assert!(cursor.is_none(), "Already saw 'cursor' key");
+                                cursor = Some(input.parse()?);
+                            }
+                            key => return Err(input.error(format!("Unexpected key `{key}`"))),
+                        }
+
+                        Ok(())
+                    };
+                    if input.span().start().line > me_percent_sign_row.0 {
+                        illicit::Layer::new()
+                            .offer(ParentEnclosingAttributeStartColumn(
+                                input.span().start().column,
+                            ))
+                            .enter(parse_attribute)
+                    } else {
+                        parse_attribute()
+                    }?
+                }
+
+                Ok(())
+            })?;
+
+        Ok(Self {
+            children: children.expect("Expected `children`"),
+            flex_grow,
+            cursor,
+        })
+    }
+}
+
+impl ToTokens for FlexRow {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let children = &self.children;
+        let flex_grow = match self.flex_grow.as_ref() {
+            None => quote! {},
+            Some(flex_grow) => quote! {
+                .flex_grow(#flex_grow)
+            },
+        };
+        let cursor = match self.cursor.as_ref() {
+            None => quote! {},
+            Some(cursor) => quote! {
+                .cursor(#cursor)
+            },
+        };
+
+        quote! {
+            ::oelung::FlexColumnBuilder::default()
+                .children(#children)
+                #flex_grow
+                #cursor
                 .build()?
         }
         .to_tokens(tokens)

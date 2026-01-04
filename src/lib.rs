@@ -16,7 +16,7 @@ mod text;
 pub use component::{Component, ComponentInterface};
 pub use cursor::{Cursor, Offset};
 pub use error::Error;
-pub use flex::{FlexColumn, FlexColumnBuilder};
+pub use flex::{FlexColumn, FlexColumnBuilder, FlexRow, FlexRowBuilder};
 pub use layout::{Absolute, Overflow, Relative};
 pub use render::{Grid, Renderer};
 pub use style::{Style, StyleBuilder};
