@@ -446,7 +446,7 @@ impl RenderingContext {
                 let mut results: SmallVec<SmallVec<(SmallVec<StyledChunk, 10>, u16), 10>, 10> =
                     _d();
                 for (child_index, child) in flex_row.children.iter().enumerate() {
-                    let width = self.grid.width / flex_row.children.len();
+                    let width = self.grid.width / u16::try_from(flex_row.children.len()).unwrap();
                     let grid = Grid {
                         left: self.grid.left + num_columns_rendered,
                         top: self.grid.top,
@@ -482,20 +482,35 @@ impl RenderingContext {
                         (0..self.grid.height).into_iter().zip_longest(staged)
                     {
                         match row_num_and_staged_row {
-                            EitherOrBoth::Both(_row_num, staged_row) => {
-                                results.push((staged_row, width));
+                            EitherOrBoth::Both(row_num, staged_row) => {
+                                let row_num = usize::from(row_num);
+                                if child_index == 0 {
+                                    assert!(
+                                        results.get(row_num).is_none() && results.len() == row_num
+                                    );
+                                    results.push(_d());
+                                }
+                                results[row_num].push((staged_row, width));
                             }
-                            EitherOrBoth::Left(_row_num) => {
-                                results.push((_d(), width));
+                            EitherOrBoth::Left(row_num) => {
+                                let row_num = usize::from(row_num);
+                                if child_index == 0 {
+                                    assert!(
+                                        results.get(row_num).is_none() && results.len() == row_num
+                                    );
+                                    results.push(_d());
+                                }
+                                results[row_num].push((_d(), width));
                             }
                             _ => unreachable!(),
                         }
                     }
+                    num_columns_rendered += width;
                 }
                 assert!(flex_row.flex_grow() == Some(1.0));
                 for result_row in results {
                     self.staged.push('outer: {
-                        let new_staged_row: SmallVec<StyledChunk, _> = _d();
+                        let mut new_staged_row: SmallVec<StyledChunk, _> = _d();
                         let has_anything_to_print_in_this_staged_row = result_row
                             .iter()
                             .any(|(horizontal_chunk, _)| !horizontal_chunk.is_empty());
@@ -510,20 +525,33 @@ impl RenderingContext {
                             }
                             panic!("already expected to find something to print in this result row")
                         };
-                        for (horizontal_chunk, allocated_width) in result_row {
+                        for (horizontal_chunk_index, (horizontal_chunk, allocated_width)) in
+                            result_row
+                                .into_iter()
+                                .take(last_horizontal_chunk_index_with_anything_to_print + 1)
+                                .enumerate()
+                        {
+                            let allocated_width = usize::from(allocated_width);
                             let mut num_bytes_printed_in_horizontal_chunk = 0;
                             for styled_chunk in horizontal_chunk {
                                 let styled_chunk_len = styled_chunk.str.len();
                                 new_staged_row.push(styled_chunk);
                                 num_bytes_printed_in_horizontal_chunk += styled_chunk_len;
-                                if num_bytes_printed_in_horizontal_chunk
-                                    > usize::from(allocated_width)
-                                {
+                                if num_bytes_printed_in_horizontal_chunk > allocated_width {
                                     panic!("flex row horizontal chunk exceeded allocated width");
                                 }
                             }
-                            if num_bytes_printed_in_horizontal_chunk < usize::from(allocated_width)
+                            if num_bytes_printed_in_horizontal_chunk < allocated_width
+                                && horizontal_chunk_index
+                                    != last_horizontal_chunk_index_with_anything_to_print
                             {
+                                new_staged_row.push(StyledChunk::new(
+                                    " ".repeat(
+                                        allocated_width - num_bytes_printed_in_horizontal_chunk,
+                                    )
+                                    .into(),
+                                    _d(),
+                                ));
                             }
                         }
                         new_staged_row
