@@ -317,11 +317,9 @@ impl RenderingContext {
                 let mut num_rows_rendered = 0;
                 for (child_index, child) in non_absolute_children.iter().enumerate() {
                     let height = if let Some(height) = child.height() {
-                        eprintln!("height 1");
                         assert!(child.flex_grow().is_none());
                         height
                     } else if let Some(flex_grow) = child.flex_grow() {
-                        eprintln!("height 2");
                         assert_eq!(flex_grow, 1.0);
                         assert!(child.height().is_none());
                         match has_any_natural_height_children {
@@ -340,10 +338,8 @@ impl RenderingContext {
                             }
                         }
                     } else {
-                        eprintln!("height 3");
                         self.grid.height - num_rows_rendered
                     };
-                    eprintln!("child_index: {child_index:#?}, height: {height:#?}");
                     let grid = Grid {
                         left: self.grid.left,
                         top: self.grid.top + num_rows_rendered,
@@ -382,11 +378,9 @@ impl RenderingContext {
                         }
                         self.rendered_cursor_position = Some(rendered_cursor_position);
                     }
-                    eprintln!("staged_len: {:#?}", staged.len());
                     assert!(staged.len() <= usize::from(height));
                     let staged_len = u16::try_from(staged.len()).unwrap();
                     if num_rows_rendered + staged_len > self.grid.height {
-                        eprintln!("num_rows_rendered: {num_rows_rendered:#?}, staged_len: {staged_len:#?}, grid height: {:#?}, height: {:#?}", self.grid.height, height);
                         match is_in_overflow_hidden_mode {
                             true => {
                                 self.staged.extend(
@@ -504,7 +498,6 @@ impl RenderingContext {
                         rendered_cursor_position,
                         ..
                     } = rendering_context;
-                    eprintln!("flex row child staged len: {:#?}", staged.len());
                     if let Some(rendered_cursor_position) = rendered_cursor_position {
                         if self.rendered_cursor_position.is_some() {
                             return Err(Error::RenderedCursorMoreThanOnce);
