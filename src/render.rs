@@ -136,7 +136,6 @@ impl Renderer {
             .last_rendered_grid_index
             .map(|last_rendered_grid_index| &self.grids[last_rendered_grid_index]);
         for (row_index, row) in staged.iter().enumerate() {
-            eprintln!("render_staged row num: {row_index:#?}");
             let prev_staged_row = prev_staged.map(|prev_staged| &prev_staged[row_index]);
             #[derive(Debug)]
             enum MatchesPrevStagedRow {
@@ -166,7 +165,6 @@ impl Renderer {
                         num_matched_chunks_and_length.1,
                     ))
                 });
-            eprintln!("render_staged matches prev staged row: {matches_prev_staged_row:#?}");
 
             self.take_over_screen_guard
                 .stdout
@@ -233,11 +231,9 @@ impl Renderer {
                         .queue(Print(styled_chunk.str.clone()))
                         .map_err(|_| Error::Crossterm("print failed".into()))?;
                     num_bytes_printed += u16::try_from(styled_chunk.str.len()).unwrap();
-                    eprintln!("render_staged printing chunk: {:#?}", styled_chunk);
                 }
             }
             if let Some(prev_staged_row) = prev_staged_row {
-                eprintln!("render_staged in prev staged row if");
                 let prev_staged_row_len = u16::try_from(
                     prev_staged_row
                         .into_iter()
@@ -251,7 +247,6 @@ impl Renderer {
                     Some(MatchesPrevStagedRow::MatchesWholeRow(len)) => len,
                 } + num_bytes_printed;
                 if total_num_bytes_printed_so_far_this_row < prev_staged_row_len {
-                    eprintln!("render_staged printing spaces");
                     self.take_over_screen_guard
                         .stdout
                         .queue(Print(" ".repeat(usize::from(
