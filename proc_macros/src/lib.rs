@@ -105,6 +105,7 @@ impl ToTokens for Element {
 struct FlexColumn {
     pub children: VecElementOrExpr,
     pub flex_grow: Option<LitFloatOrInt>,
+    pub maybe_flex_grow: Option<Expr>,
     pub cursor: Option<Cursor>,
     pub relative: Option<Expr>,
     pub overflow_y: Option<Overflow>,
@@ -114,6 +115,7 @@ impl Parse for FlexColumn {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut children: Option<VecElementOrExpr> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
+        let mut maybe_flex_grow: Option<Expr> = _d();
         let mut cursor: Option<Cursor> = _d();
         let mut relative: Option<Expr> = _d();
         let mut overflow_y: Option<Overflow> = _d();
@@ -151,7 +153,22 @@ impl Parse for FlexColumn {
                             }
                             "flex_grow" => {
                                 assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
+                                assert!(
+                                    maybe_flex_grow.is_none(),
+                                    "Can't use both 'flex_grow' and 'maybe_flex_grow'"
+                                );
                                 flex_grow = Some(input.parse()?);
+                            }
+                            "maybe_flex_grow" => {
+                                assert!(
+                                    maybe_flex_grow.is_none(),
+                                    "Already saw 'maybe_flex_grow' key"
+                                );
+                                assert!(
+                                    flex_grow.is_none(),
+                                    "Can't use both 'flex_grow' and 'maybe_flex_grow'"
+                                );
+                                maybe_flex_grow = Some(input.parse()?);
                             }
                             "cursor" => {
                                 assert!(cursor.is_none(), "Already saw 'cursor' key");
@@ -187,6 +204,7 @@ impl Parse for FlexColumn {
         Ok(Self {
             children: children.expect("Expected `children`"),
             flex_grow,
+            maybe_flex_grow,
             cursor,
             relative,
             overflow_y,
@@ -201,6 +219,12 @@ impl ToTokens for FlexColumn {
             None => quote! {},
             Some(flex_grow) => quote! {
                 .flex_grow(#flex_grow)
+            },
+        };
+        let maybe_flex_grow = match self.maybe_flex_grow.as_ref() {
+            None => quote! {},
+            Some(maybe_flex_grow) => quote! {
+                .maybe_flex_grow(#maybe_flex_grow)
             },
         };
         let cursor = match self.cursor.as_ref() {
@@ -226,6 +250,7 @@ impl ToTokens for FlexColumn {
             ::oelung::FlexColumnBuilder::default()
                 .children(#children)
                 #flex_grow
+                #maybe_flex_grow
                 #cursor
                 #relative
                 #overflow_y

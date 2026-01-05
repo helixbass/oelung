@@ -49,6 +49,11 @@ impl<'a> FlexColumnBuilder<'a> {
         self
     }
 
+    pub fn maybe_flex_grow(mut self, flex_grow: Option<impl Into<f64>>) -> Self {
+        self.flex_grow = flex_grow.map(Into::into);
+        self
+    }
+
     pub fn relative(mut self, relative: Relative) -> Self {
         self.relative = Some(relative);
         self
