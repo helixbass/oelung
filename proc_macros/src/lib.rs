@@ -414,6 +414,7 @@ struct Text {
     pub cursor: Option<Cursor>,
     pub color: Option<Color>,
     pub background_color: Option<Color>,
+    pub flex_grow: Option<LitFloatOrInt>,
 }
 
 impl Parse for Text {
@@ -423,6 +424,7 @@ impl Parse for Text {
         let mut children: Option<Vec<TextChild>> = _d();
         let mut color: Option<Color> = _d();
         let mut background_color: Option<Color> = _d();
+        let mut flex_grow: Option<LitFloatOrInt> = _d();
 
         let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
         let me_percent_sign_row = illicit::expect::<MePercentSignRow>();
@@ -492,6 +494,10 @@ impl Parse for Text {
                                         );
                                         background_color = Some(input.parse()?);
                                     }
+                                    "flex_grow" => {
+                                        assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
+                                        flex_grow = Some(input.parse()?);
+                                    }
                                     key => {
                                         return Err(input.error(format!("Unexpected key `{key}`")))
                                     }
@@ -527,6 +533,7 @@ impl Parse for Text {
             cursor,
             color,
             background_color,
+            flex_grow,
         })
     }
 }
@@ -556,12 +563,18 @@ impl ToTokens for Text {
             Some(background_color) => quote! { .background_color(#background_color) },
         };
 
+        let flex_grow = match self.flex_grow.as_ref() {
+            None => quote! {},
+            Some(flex_grow) => quote! { .flex_grow(#flex_grow) },
+        };
+
         quote! {
             ::oelung::TextBuilder::default()
                 #(#children)*
                 #cursor
                 #color
                 #background_color
+                #flex_grow
                 .build()?
         }
         .to_tokens(tokens)

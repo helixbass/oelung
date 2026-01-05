@@ -35,7 +35,7 @@ impl<'a> Component<'a> {
 
     pub fn flex_grow(&self) -> Option<f64> {
         match self {
-            Self::Text(_) => None,
+            Self::Text(text) => text.flex_grow(),
             Self::FlexColumn(flex_column) => flex_column.flex_grow(),
             Self::FlexRow(flex_row) => flex_row.flex_grow(),
             Self::Absolute(_) => unreachable!(),

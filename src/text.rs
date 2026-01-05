@@ -12,12 +12,17 @@ use crate::{ComponentInterface, Cursor, Error, Style, StyleBuilder};
 pub struct Text<'a> {
     pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
+    pub flex_grow: Option<f64>,
     pub style: Option<Style>,
 }
 
 impl<'a> Text<'a> {
     pub fn height(&self) -> Option<u16> {
-        Some(1)
+        self.flex_grow.is_none().then_some(1)
+    }
+
+    pub fn flex_grow(&self) -> Option<f64> {
+        self.flex_grow
     }
 }
 
@@ -27,6 +32,7 @@ pub struct TextBuilder<'a> {
     pub cursor: Option<Cursor>,
     pub color: Option<Color>,
     pub background_color: Option<Color>,
+    pub flex_grow: Option<f64>,
 }
 
 impl<'a> TextBuilder<'a> {
@@ -60,6 +66,11 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
+    pub fn flex_grow(mut self, flex_grow: f64) -> Self {
+        self.flex_grow = Some(flex_grow);
+        self
+    }
+
     pub fn build(self) -> Result<Text<'a>, Error> {
         if self.children.is_empty() {
             return Err(Error::TextBuilder("empty children".into()));
@@ -67,6 +78,7 @@ impl<'a> TextBuilder<'a> {
         Ok(Text {
             children: self.children,
             cursor: self.cursor,
+            flex_grow: self.flex_grow,
             style: {
                 let mut style = StyleBuilder::default();
                 if let Some(color) = self.color {
