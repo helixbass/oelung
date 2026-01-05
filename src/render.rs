@@ -178,6 +178,7 @@ impl Renderer {
                 ))
                 .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
+            let mut num_bytes_printed = 0;
             for styled_chunk in row.into_iter().skip(match matches_prev_staged_row {
                 None => 0,
                 Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(num_chunks, _)) => {
@@ -217,6 +218,29 @@ impl Renderer {
                     .stdout
                     .queue(Print(styled_chunk.str.clone()))
                     .map_err(|_| Error::Crossterm("print failed".into()))?;
+                num_bytes_printed += u16::try_from(styled_chunk.str.len()).unwrap();
+            }
+            if let Some(prev_staged_row) = prev_staged_row {
+                let prev_staged_row_len = u16::try_from(
+                    prev_staged_row
+                        .into_iter()
+                        .map(|chunk| chunk.str.len())
+                        .sum::<usize>(),
+                )
+                .unwrap();
+                let total_num_bytes_printed_so_far_this_row = match matches_prev_staged_row {
+                    None => 0,
+                    Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(_, len)) => len,
+                    _ => unreachable!(),
+                } + num_bytes_printed;
+                if total_num_bytes_printed_so_far_this_row < prev_staged_row_len {
+                    self.take_over_screen_guard
+                        .stdout
+                        .queue(Print(" ".repeat(usize::from(
+                            prev_staged_row_len - total_num_bytes_printed_so_far_this_row,
+                        ))))
+                        .map_err(|_| Error::Crossterm("print failed".into()))?;
+                }
             }
         }
 
