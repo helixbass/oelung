@@ -66,8 +66,8 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
-    pub fn flex_grow(mut self, flex_grow: f64) -> Self {
-        self.flex_grow = Some(flex_grow);
+    pub fn flex_grow(mut self, flex_grow: impl Into<f64>) -> Self {
+        self.flex_grow = Some(flex_grow.into());
         self
     }
 
