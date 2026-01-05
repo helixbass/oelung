@@ -141,7 +141,7 @@ impl Renderer {
             #[derive(Debug)]
             enum MatchesPrevStagedRow {
                 MatchesPrefixNumChunksAndLength(usize, u16),
-                MatchesWholeRow,
+                MatchesWholeRow(u16),
             }
             let matches_prev_staged_row: Option<MatchesPrevStagedRow> =
                 prev_staged_row.and_then(|prev_staged_row| {
@@ -162,15 +162,10 @@ impl Renderer {
                                 + u16::try_from(styled_chunk.str.len()).unwrap(),
                         );
                     }
-                    Some(MatchesPrevStagedRow::MatchesWholeRow)
+                    Some(MatchesPrevStagedRow::MatchesWholeRow(
+                        num_matched_chunks_and_length.1,
+                    ))
                 });
-            if matches!(
-                matches_prev_staged_row,
-                Some(MatchesPrevStagedRow::MatchesWholeRow)
-            ) {
-                eprintln!("render_staged matches whole prev staged row");
-                continue;
-            }
             eprintln!("render_staged matches prev staged row: {matches_prev_staged_row:#?}");
 
             self.take_over_screen_guard
@@ -179,54 +174,67 @@ impl Renderer {
                     match matches_prev_staged_row {
                         None => 0,
                         Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(_, len)) => len,
-                        _ => unreachable!(),
+                        Some(MatchesPrevStagedRow::MatchesWholeRow(len)) => len,
                     },
                     u16::try_from(row_index).unwrap(),
                 ))
                 .map_err(|_| Error::Crossterm("move to failed".into()))?;
 
             let mut num_bytes_printed = 0;
-            for styled_chunk in row.into_iter().skip(match matches_prev_staged_row {
-                None => 0,
-                Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(num_chunks, _)) => {
-                    num_chunks
+            if !matches!(
+                matches_prev_staged_row,
+                Some(MatchesPrevStagedRow::MatchesWholeRow(_))
+            ) {
+                for styled_chunk in row.into_iter().skip(match matches_prev_staged_row {
+                    None => 0,
+                    Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(num_chunks, _)) => {
+                        num_chunks
+                    }
+                    _ => unreachable!(),
+                }) {
+                    match styled_chunk.style.color {
+                        Some(color) => {
+                            self.take_over_screen_guard
+                                .stdout
+                                .queue(SetForegroundColor(color))
+                                .map_err(|_| {
+                                    Error::Crossterm("set foreground color failed".into())
+                                })?;
+                        }
+                        None => {
+                            self.take_over_screen_guard
+                                .stdout
+                                .queue(SetForegroundColor(Color::Reset))
+                                .map_err(|_| {
+                                    Error::Crossterm("set foreground color failed".into())
+                                })?;
+                        }
+                    }
+                    match styled_chunk.style.background_color {
+                        Some(background_color) => {
+                            self.take_over_screen_guard
+                                .stdout
+                                .queue(SetBackgroundColor(background_color))
+                                .map_err(|_| {
+                                    Error::Crossterm("set background color failed".into())
+                                })?;
+                        }
+                        None => {
+                            self.take_over_screen_guard
+                                .stdout
+                                .queue(SetBackgroundColor(Color::Reset))
+                                .map_err(|_| {
+                                    Error::Crossterm("set background color failed".into())
+                                })?;
+                        }
+                    }
+                    self.take_over_screen_guard
+                        .stdout
+                        .queue(Print(styled_chunk.str.clone()))
+                        .map_err(|_| Error::Crossterm("print failed".into()))?;
+                    num_bytes_printed += u16::try_from(styled_chunk.str.len()).unwrap();
+                    eprintln!("render_staged printing chunk: {:#?}", styled_chunk);
                 }
-                _ => unreachable!(),
-            }) {
-                match styled_chunk.style.color {
-                    Some(color) => {
-                        self.take_over_screen_guard
-                            .stdout
-                            .queue(SetForegroundColor(color))
-                            .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
-                    }
-                    None => {
-                        self.take_over_screen_guard
-                            .stdout
-                            .queue(SetForegroundColor(Color::Reset))
-                            .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
-                    }
-                }
-                match styled_chunk.style.background_color {
-                    Some(background_color) => {
-                        self.take_over_screen_guard
-                            .stdout
-                            .queue(SetBackgroundColor(background_color))
-                            .map_err(|_| Error::Crossterm("set background color failed".into()))?;
-                    }
-                    None => {
-                        self.take_over_screen_guard
-                            .stdout
-                            .queue(SetBackgroundColor(Color::Reset))
-                            .map_err(|_| Error::Crossterm("set background color failed".into()))?;
-                    }
-                }
-                self.take_over_screen_guard
-                    .stdout
-                    .queue(Print(styled_chunk.str.clone()))
-                    .map_err(|_| Error::Crossterm("print failed".into()))?;
-                num_bytes_printed += u16::try_from(styled_chunk.str.len()).unwrap();
-                eprintln!("render_staged printing chunk: {:#?}", styled_chunk);
             }
             if let Some(prev_staged_row) = prev_staged_row {
                 eprintln!("render_staged in prev staged row if");
@@ -240,7 +248,7 @@ impl Renderer {
                 let total_num_bytes_printed_so_far_this_row = match matches_prev_staged_row {
                     None => 0,
                     Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(_, len)) => len,
-                    _ => unreachable!(),
+                    Some(MatchesPrevStagedRow::MatchesWholeRow(len)) => len,
                 } + num_bytes_printed;
                 if total_num_bytes_printed_so_far_this_row < prev_staged_row_len {
                     eprintln!("render_staged printing spaces");
