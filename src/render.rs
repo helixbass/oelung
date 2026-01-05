@@ -285,6 +285,7 @@ impl RenderingContext {
         match component {
             Component::Text(text) => {
                 self.staged.push(_d());
+                eprintln!("rendering text: {text:#?}");
                 self.render_text(text, 0, self.style)?;
             }
             Component::FlexColumn(flex_column) => {
@@ -674,6 +675,7 @@ impl RenderingContext {
 
     // #[instrument(level = "trace", skip(self, text, line_num, style))]
     fn print_text(&mut self, text: &str, line_num: usize, style: Style) -> Result<(), Error> {
+        eprintln!("print_text text: {text:#?}, line_num: {line_num:#?}, style: {style:#?}");
         self.staged[line_num].push(StyledChunk {
             str: text.to_smolstr(),
             style,

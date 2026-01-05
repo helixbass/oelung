@@ -612,26 +612,17 @@ enum TextChild {
     NestedComponent(Expr),
 }
 
-impl TextChild {
-    pub fn into_text(self) -> LitStrOrExpr {
-        match self {
-            Self::Text(text) => text,
-            _ => panic!("Expected text"),
-        }
-    }
-}
-
 impl Parse for TextChild {
     fn parse(input: ParseStream) -> Result<Self> {
         let element: Element = input.parse()?;
 
         Ok(match element {
-            Element::Text(mut text) => {
-                if text.children.len() == 1 && matches!(&text.children[0], TextChild::Text(_)) {
-                    Self::Text(text.children.remove(0).into_text())
-                } else {
-                    Self::Nested(text)
-                }
+            Element::Text(text) => {
+                // if text.children.len() == 1 && matches!(&text.children[0], TextChild::Text(_)) {
+                //     Self::Text(text.children.remove(0).into_text())
+                // } else {
+                Self::Nested(text)
+                // }
             }
             Element::Component(component) => Self::NestedComponent(component),
             _ => return Err(input.error("Expected text child")),

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{self, Debug, Display};
 use std::rc::Rc;
 
 use crossterm::style::Color;
@@ -8,7 +8,7 @@ use smol_str::{SmolStr, ToSmolStr};
 
 use crate::{ComponentInterface, Cursor, Error, Style, StyleBuilder};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Text<'a> {
     pub children: TextChildren<'a>,
     pub cursor: Option<Cursor>,
@@ -100,6 +100,19 @@ pub enum TextChild<'a> {
     Nested(Rc<Text<'a>>),
     NestedComponent(Rc<dyn ComponentInterface + 'a>),
     Text(SmolStr),
+}
+
+impl<'a> Debug for TextChild<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Nested(arg0) => f.debug_tuple("Nested").field(arg0).finish(),
+            Self::NestedComponent(_arg0) => f
+                .debug_tuple("NestedComponent")
+                // .field(arg0)
+                .finish(),
+            Self::Text(arg0) => f.debug_tuple("Text").field(arg0).finish(),
+        }
+    }
 }
 
 impl<'a> From<Text<'a>> for TextChild<'a> {
