@@ -1,6 +1,9 @@
 use std::cell::Cell;
 
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::{
+    event::{self, Event, KeyCode},
+    style::Color,
+};
 
 use oelung::{soft, Component, ComponentInterface, Cursor, FlexColumnBuilder, Grid, Renderer};
 use squalid::_d;
@@ -168,7 +171,7 @@ impl ComponentInterface for StatusBar {
     fn render(&self, _grid: Grid) -> Result<Component<'_>, anyhow::Error> {
         Ok(soft! {
           %Text
-            color => Ansi(182)
+            color => Color::AnsiValue(182)
             children => [
               %Text "some_file.rs ["
               %Text self.current_percent

@@ -1,4 +1,7 @@
-use crossterm::event::{self, Event, KeyCode};
+use crossterm::{
+    event::{self, Event, KeyCode},
+    style::Color,
+};
 
 use oelung::{soft, Renderer};
 
@@ -20,7 +23,7 @@ fn main() -> Result<(), anyhow::Error> {
 fn render_screen(renderer: &mut Renderer) -> Result<(), anyhow::Error> {
     renderer.render(soft! {
         %Text
-          background_color => Ansi(52)
+          background_color => Color::AnsiValue(52)
           text => "On red background (hit q to quit)"
           cursor => %Cursor.Relative
             x => 0
