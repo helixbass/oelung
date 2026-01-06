@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use squalid::{OptionExtDefault, _d};
+use squalid::_d;
 use syn::{
     bracketed, parenthesized,
     parse::{Parse, ParseStream, Result},
@@ -435,7 +435,7 @@ impl ToTokens for Cursor {
 }
 
 struct Text {
-    pub children: Vec<TextChild>,
+    pub children: VecTextChildOrExpr,
     pub cursor: Option<Cursor>,
     pub color: Option<Color>,
     pub background_color: Option<Color>,
@@ -446,7 +446,7 @@ impl Parse for Text {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut text: Option<LitStrOrExpr> = _d();
         let mut cursor: Option<Cursor> = _d();
-        let mut children: Option<Vec<TextChild>> = _d();
+        let mut children: Option<VecTextChildOrExpr> = _d();
         let mut color: Option<Color> = _d();
         let mut background_color: Option<Color> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
@@ -500,13 +500,7 @@ impl Parse for Text {
                                             text.is_none(),
                                             "Only provide one of 'text' or 'children'"
                                         );
-                                        let children_content;
-                                        bracketed!(children_content in input);
-                                        let children = children.populate_default();
-                                        while !children_content.is_empty() {
-                                            children.push(children_content.parse()?);
-                                            children_content.parse::<Option<Token![,]>>()?;
-                                        }
+                                        children = Some(input.parse()?);
                                     }
                                     "color" => {
                                         assert!(color.is_none(), "Already saw 'color' key");
@@ -547,7 +541,9 @@ impl Parse for Text {
                 }
 
                 if children.is_none() {
-                    children = Some(vec![TextChild::Text(text.expect("Expected `text`"))]);
+                    children = Some(VecTextChildOrExpr::VecTextChild(vec![TextChild::Text(
+                        text.expect("Expected `text`"),
+                    )]));
                 }
 
                 Ok(())
@@ -565,13 +561,14 @@ impl Parse for Text {
 
 impl ToTokens for Text {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let children = self.children.iter().map(|child| match child {
-            TextChild::Text(text) => quote! { .text_child(#text) },
-            TextChild::Nested(nested) => quote! { .nested_child(#nested) },
-            TextChild::NestedComponent(nested_component) => {
-                quote! { .nested_component_child(::std::rc::Rc::new(#nested_component)) }
-            }
-        });
+        let children = match &self.children {
+            VecTextChildOrExpr::VecTextChild(children) => quote! {
+                .children(::smallvec::smallvec![#(#children),*])
+            },
+            VecTextChildOrExpr::Expr(children) => quote! {
+                .children(#children)
+            },
+        };
 
         let cursor = match self.cursor.as_ref() {
             None => quote! {},
@@ -595,7 +592,7 @@ impl ToTokens for Text {
 
         quote! {
             ::oelung::TextBuilder::default()
-                #(#children)*
+                #children
                 #cursor
                 #color
                 #background_color
@@ -627,6 +624,19 @@ impl Parse for TextChild {
             Element::Component(component) => Self::NestedComponent(component),
             _ => return Err(input.error("Expected text child")),
         })
+    }
+}
+
+impl ToTokens for TextChild {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            TextChild::Text(text) => quote! { ::oelung::TextChild::Text(#text.to_string()) },
+            TextChild::Nested(nested) => quote! { #nested.into() },
+            TextChild::NestedComponent(nested_component) => {
+                quote! { ::oelung::TextChild::NestedComponent(::std::rc::Rc::new(#nested_component)) }
+            }
+        }
+        .to_tokens(tokens)
     }
 }
 
@@ -859,6 +869,39 @@ impl ToTokens for VecElementOrExpr {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
             Self::VecElement(items) => quote! { vec![#(#items),*] },
+            Self::Expr(expr) => quote! { #expr },
+        }
+        .to_tokens(tokens)
+    }
+}
+
+enum VecTextChildOrExpr {
+    VecTextChild(Vec<TextChild>),
+    Expr(Expr),
+}
+
+impl Parse for VecTextChildOrExpr {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(match input.peek(token::Bracket) {
+            true => {
+                let bracketed_content;
+                bracketed!(bracketed_content in input);
+                let mut items = vec![];
+                while !bracketed_content.is_empty() {
+                    items.push(bracketed_content.parse()?);
+                    bracketed_content.parse::<Option<Token![,]>>()?;
+                }
+                Self::VecTextChild(items)
+            }
+            false => Self::Expr(input.parse::<LessThanBinaryExpr>()?.expr),
+        })
+    }
+}
+
+impl ToTokens for VecTextChildOrExpr {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        match self {
+            Self::VecTextChild(items) => quote! { vec![#(#items),*] },
             Self::Expr(expr) => quote! { #expr },
         }
         .to_tokens(tokens)

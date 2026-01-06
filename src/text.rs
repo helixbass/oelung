@@ -33,26 +33,46 @@ pub struct TextBuilder<'a> {
     pub color: Option<Color>,
     pub background_color: Option<Color>,
     pub flex_grow: Option<f64>,
+    pub has_called_children: bool,
 }
 
 impl<'a> TextBuilder<'a> {
     pub fn text_child(mut self, child: impl Display) -> Self {
+        if self.has_called_children {
+            panic!("Can't use both `.children()` and `.text_child()`/`.nested_child()`/`.nested_component_child()`");
+        }
         self.children.push(child.to_smolstr().into());
         self
     }
 
-    pub fn cursor(mut self, cursor: Cursor) -> Self {
-        self.cursor = Some(cursor);
-        self
-    }
-
     pub fn nested_child(mut self, child: Text<'a>) -> Self {
+        if self.has_called_children {
+            panic!("Can't use both `.children()` and `.text_child()`/`.nested_child()`/`.nested_component_child()`");
+        }
         self.children.push(child.into());
         self
     }
 
     pub fn nested_component_child(mut self, child: Rc<dyn ComponentInterface + 'a>) -> Self {
+        if self.has_called_children {
+            panic!("Can't use both `.children()` and `.text_child()`/`.nested_child()`/`.nested_component_child()`");
+        }
         self.children.push(TextChild::NestedComponent(child));
+        self
+    }
+
+    pub fn children(mut self, children: TextChildren<'a>) -> Self {
+        assert!(
+            self.children.is_empty(),
+            "Can't use both `.children()` and `.text_child()`/`.nested_child()`/`.nested_component_child()`"
+        );
+        self.children = children;
+        self.has_called_children = true;
+        self
+    }
+
+    pub fn cursor(mut self, cursor: Cursor) -> Self {
+        self.cursor = Some(cursor);
         self
     }
 
