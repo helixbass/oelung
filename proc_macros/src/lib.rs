@@ -630,7 +630,10 @@ impl Parse for TextChild {
 impl ToTokens for TextChild {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
-            TextChild::Text(text) => quote! { ::oelung::TextChild::Text(#text.to_string()) },
+            TextChild::Text(text) => quote! {{
+                use ::smol_str::ToSmolStr;
+                ::oelung::TextChild::Text(#text.to_smolstr())
+            }},
             TextChild::Nested(nested) => quote! { #nested.into() },
             TextChild::NestedComponent(nested_component) => {
                 quote! { ::oelung::TextChild::NestedComponent(::std::rc::Rc::new(#nested_component)) }
