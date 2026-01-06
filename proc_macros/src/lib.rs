@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use squalid::_d;
 use syn::{
-    bracketed, parenthesized,
+    bracketed,
     parse::{Parse, ParseStream, Result},
     parse_macro_input, token, Expr, Ident, LessThanBinaryExpr, LitFloat, LitInt, LitStr, Token,
 };
@@ -437,8 +437,8 @@ impl ToTokens for Cursor {
 struct Text {
     pub children: VecTextChildOrExpr,
     pub cursor: Option<Cursor>,
-    pub color: Option<Color>,
-    pub background_color: Option<Color>,
+    pub color: Option<Expr>,
+    pub background_color: Option<Expr>,
     pub flex_grow: Option<LitFloatOrInt>,
 }
 
@@ -447,8 +447,8 @@ impl Parse for Text {
         let mut text: Option<LitStrOrExpr> = _d();
         let mut cursor: Option<Cursor> = _d();
         let mut children: Option<VecTextChildOrExpr> = _d();
-        let mut color: Option<Color> = _d();
-        let mut background_color: Option<Color> = _d();
+        let mut color: Option<Expr> = _d();
+        let mut background_color: Option<Expr> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
 
         let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
@@ -504,14 +504,15 @@ impl Parse for Text {
                                     }
                                     "color" => {
                                         assert!(color.is_none(), "Already saw 'color' key");
-                                        color = Some(input.parse()?);
+                                        color = Some(input.parse::<LessThanBinaryExpr>()?.expr);
                                     }
                                     "background_color" => {
                                         assert!(
                                             background_color.is_none(),
                                             "Already saw 'background_color' key"
                                         );
-                                        background_color = Some(input.parse()?);
+                                        background_color =
+                                            Some(input.parse::<LessThanBinaryExpr>()?.expr);
                                     }
                                     "flex_grow" => {
                                         assert!(flex_grow.is_none(), "Already saw 'flex_grow' key");
@@ -715,35 +716,6 @@ impl ToTokens for Absolute {
 
         quote! {
             ::oelung::Absolute::new(#content)
-        }
-        .to_tokens(tokens)
-    }
-}
-
-enum Color {
-    Ansi(LitInt),
-}
-
-impl Parse for Color {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let name: Ident = input.parse()?;
-        if name.to_string() != "Ansi" {
-            return Err(input.error(format!("Expected 'Ansi'")));
-        }
-        let color_content;
-        parenthesized!(color_content in input);
-        let ansi: LitInt = color_content.parse()?;
-
-        Ok(Self::Ansi(ansi))
-    }
-}
-
-impl ToTokens for Color {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            Self::Ansi(ansi) => quote! {
-                ::oelung::crossterm::style::Color::AnsiValue(#ansi)
-            },
         }
         .to_tokens(tokens)
     }
