@@ -81,6 +81,18 @@ impl BackendInterface for Backend {
     }
 }
 
+impl From<BackendCrossterm> for Backend {
+    fn from(value: BackendCrossterm) -> Self {
+        Self::Crossterm(value)
+    }
+}
+
+impl From<Rc<RefCell<BackendMemory>>> for Backend {
+    fn from(value: Rc<RefCell<BackendMemory>>) -> Self {
+        Self::Memory(value)
+    }
+}
+
 pub struct BackendCrossterm {
     pub take_over_screen_guard: TakeOverScreenGuard,
 }

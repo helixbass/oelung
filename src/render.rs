@@ -29,8 +29,8 @@ pub struct RendererBuilder {
 }
 
 impl RendererBuilder {
-    pub fn backend(mut self, backend: Backend) -> Self {
-        self.backend = Some(backend);
+    pub fn backend(mut self, backend: impl Into<Backend>) -> Self {
+        self.backend = Some(backend.into());
         self
     }
 
