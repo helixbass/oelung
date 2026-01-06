@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::fmt::Display;
 use std::io::Write;
+use std::rc::Rc;
 
 use crossterm::{
     cursor,
@@ -14,21 +16,21 @@ use crate::{take_over_screen, Error, TakeOverScreenGuard};
 
 pub enum Backend {
     Crossterm(BackendCrossterm),
-    Memory(BackendMemory),
+    Memory(Rc<RefCell<BackendMemory>>),
 }
 
 impl BackendInterface for Backend {
     fn size(&self) -> Result<Size, Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.size(),
-            Self::Memory(memory) => memory.size(),
+            Self::Memory(memory) => memory.borrow().size(),
         }
     }
 
     fn queue_hide_cursor(&mut self) -> Result<(), Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_hide_cursor(),
-            Self::Memory(memory) => memory.queue_hide_cursor(),
+            Self::Memory(memory) => memory.borrow_mut().queue_hide_cursor(),
         }
     }
 
@@ -39,42 +41,42 @@ impl BackendInterface for Backend {
     ) -> Result<(), Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_move_cursor(column, row),
-            Self::Memory(memory) => memory.queue_move_cursor(column, row),
+            Self::Memory(memory) => memory.borrow_mut().queue_move_cursor(column, row),
         }
     }
 
     fn queue_show_cursor(&mut self) -> Result<(), Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_show_cursor(),
-            Self::Memory(memory) => memory.queue_show_cursor(),
+            Self::Memory(memory) => memory.borrow_mut().queue_show_cursor(),
         }
     }
 
     fn flush(&mut self) -> Result<(), Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.flush(),
-            Self::Memory(memory) => memory.flush(),
+            Self::Memory(memory) => memory.borrow_mut().flush(),
         }
     }
 
     fn queue_set_foreground_color(&mut self, color: Color) -> Result<(), Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_set_foreground_color(color),
-            Self::Memory(memory) => memory.queue_set_foreground_color(color),
+            Self::Memory(memory) => memory.borrow_mut().queue_set_foreground_color(color),
         }
     }
 
     fn queue_set_background_color(&mut self, color: Color) -> Result<(), Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_set_background_color(color),
-            Self::Memory(memory) => memory.queue_set_background_color(color),
+            Self::Memory(memory) => memory.borrow_mut().queue_set_background_color(color),
         }
     }
 
     fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error> {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_print(value),
-            Self::Memory(memory) => memory.queue_print(value),
+            Self::Memory(memory) => memory.borrow_mut().queue_print(value),
         }
     }
 }
