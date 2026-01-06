@@ -68,10 +68,7 @@ impl Renderer {
     pub fn render(&mut self, component: Component) -> Result<(), Error> {
         self.rendered_cursor_position_in_this_render = _d();
 
-        self.take_over_screen_guard
-            .stdout
-            .queue(cursor::Hide)
-            .map_err(|_| Error::Crossterm("hide failed".into()))?;
+        self.backend.queue_hide_cursor()?;
 
         let style = Style::default();
         let grid = Grid {
@@ -704,12 +701,6 @@ impl RenderingContext {
 
         Ok(())
     }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Position {
-    pub row: u16,
-    pub column: u16,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

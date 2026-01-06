@@ -3,7 +3,7 @@ use crossterm::{
     terminal::{self, Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
-use squalid::EverythingExt;
+use squalid::{EverythingExt, _d};
 use tracing::instrument;
 
 use crate::{take_over_screen, Error, TakeOverScreenGuard};
@@ -25,6 +25,24 @@ impl BackendInterface for Backend {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_hide_cursor(),
             Self::Memory(memory) => memory.queue_hide_cursor(),
+        }
+    }
+
+    fn queue_move_cursor(
+        &mut self,
+        column: RowOrColumnNumber,
+        row: RowOrColumnNumber,
+    ) -> Result<(), Error> {
+        match self {
+            Self::Crossterm(crossterm) => crossterm.queue_move_cursor(column, row),
+            Self::Memory(memory) => memory.queue_move_cursor(column, row),
+        }
+    }
+
+    fn queue_show_cursor(&mut self) -> Result<(), Error> {
+        match self {
+            Self::Crossterm(crossterm) => crossterm.queue_show_cursor(),
+            Self::Memory(memory) => memory.queue_show_cursor(),
         }
     }
 }
@@ -67,15 +85,41 @@ impl BackendInterface for BackendCrossterm {
 
         Ok(())
     }
+
+    fn queue_move_cursor(
+        &mut self,
+        column: RowOrColumnNumber,
+        row: RowOrColumnNumber,
+    ) -> Result<(), Error> {
+        self.take_over_screen_guard
+            .stdout
+            .queue(cursor::MoveTo(column, row))
+            .map_err(|_| Error::Crossterm("move to failed".into()))?;
+
+        Ok(())
+    }
+
+    fn queue_show_cursor(&mut self) -> Result<(), Error> {
+        self.take_over_screen_guard
+            .stdout
+            .queue(cursor::Show)
+            .map_err(|_| Error::Crossterm("show failed".into()))?;
+
+        Ok(())
+    }
 }
 
 pub struct BackendMemory {
     pub size: Size,
+    pub cursor_position: Option<Position>,
 }
 
 impl BackendMemory {
     pub fn new(size: Size) -> Self {
-        Self { size }
+        Self {
+            size,
+            cursor_position: _d(),
+        }
     }
 }
 
@@ -87,11 +131,31 @@ impl BackendInterface for BackendMemory {
     fn queue_hide_cursor(&mut self) -> Result<(), Error> {
         Ok(())
     }
+
+    fn queue_move_cursor(
+        &mut self,
+        column: RowOrColumnNumber,
+        row: RowOrColumnNumber,
+    ) -> Result<(), Error> {
+        self.cursor_position = Some(Position { row, column });
+
+        Ok(())
+    }
+
+    fn queue_show_cursor(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
 pub trait BackendInterface {
     fn size(&self) -> Result<Size, Error>;
     fn queue_hide_cursor(&mut self) -> Result<(), Error>;
+    fn queue_move_cursor(
+        &mut self,
+        column: RowOrColumnNumber,
+        row: RowOrColumnNumber,
+    ) -> Result<(), Error>;
+    fn queue_show_cursor(&mut self) -> Result<(), Error>;
 }
 
 pub type RowOrColumnNumber = u16;
@@ -100,4 +164,10 @@ pub type RowOrColumnNumber = u16;
 pub struct Size {
     pub height: RowOrColumnNumber,
     pub width: RowOrColumnNumber,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct Position {
+    pub row: RowOrColumnNumber,
+    pub column: RowOrColumnNumber,
 }

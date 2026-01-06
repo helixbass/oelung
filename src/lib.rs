@@ -15,7 +15,7 @@ mod terminal;
 mod text;
 
 pub use backend::{
-    Backend, BackendCrossterm, BackendInterface, BackendMemory, RowOrColumnNumber, Size,
+    Backend, BackendCrossterm, BackendInterface, BackendMemory, Position, RowOrColumnNumber, Size,
 };
 pub use component::{Component, ComponentInterface};
 pub use cursor::{Cursor, Offset};
@@ -24,5 +24,5 @@ pub use flex::{FlexColumn, FlexColumnBuilder, FlexRow, FlexRowBuilder};
 pub use layout::{Absolute, Overflow, Relative};
 pub use render::{Grid, Renderer, RendererBuilder};
 pub use style::{Style, StyleBuilder};
-pub use terminal::{size, take_over_screen, TakeOverScreenGuard};
+pub use terminal::{take_over_screen, TakeOverScreenGuard};
 pub use text::{Text, TextBuilder, TextChild, TextChildren};
