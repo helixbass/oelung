@@ -81,6 +81,11 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
+    pub fn maybe_color(mut self, color: Option<Color>) -> Self {
+        self.color = color;
+        self
+    }
+
     pub fn background_color(mut self, color: Color) -> Self {
         self.background_color = Some(color);
         self

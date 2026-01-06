@@ -438,6 +438,7 @@ struct Text {
     pub children: VecTextChildOrExpr,
     pub cursor: Option<Cursor>,
     pub color: Option<Expr>,
+    pub maybe_color: Option<Expr>,
     pub background_color: Option<Expr>,
     pub flex_grow: Option<LitFloatOrInt>,
 }
@@ -448,6 +449,7 @@ impl Parse for Text {
         let mut cursor: Option<Cursor> = _d();
         let mut children: Option<VecTextChildOrExpr> = _d();
         let mut color: Option<Expr> = _d();
+        let mut maybe_color: Option<Expr> = _d();
         let mut background_color: Option<Expr> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
 
@@ -504,7 +506,23 @@ impl Parse for Text {
                                     }
                                     "color" => {
                                         assert!(color.is_none(), "Already saw 'color' key");
+                                        assert!(
+                                            maybe_color.is_none(),
+                                            "Can't use both 'color' and 'maybe_color'"
+                                        );
                                         color = Some(input.parse::<LessThanBinaryExpr>()?.expr);
+                                    }
+                                    "maybe_color" => {
+                                        assert!(
+                                            maybe_color.is_none(),
+                                            "Already saw 'maybe_color' key"
+                                        );
+                                        assert!(
+                                            color.is_none(),
+                                            "Can't use both 'color' and 'maybe_color'"
+                                        );
+                                        maybe_color =
+                                            Some(input.parse::<LessThanBinaryExpr>()?.expr);
                                     }
                                     "background_color" => {
                                         assert!(
@@ -554,6 +572,7 @@ impl Parse for Text {
             children: children.unwrap(),
             cursor,
             color,
+            maybe_color,
             background_color,
             flex_grow,
         })
@@ -581,6 +600,11 @@ impl ToTokens for Text {
             Some(color) => quote! { .color(#color) },
         };
 
+        let maybe_color = match self.maybe_color.as_ref() {
+            None => quote! {},
+            Some(maybe_color) => quote! { .maybe_color(#maybe_color) },
+        };
+
         let background_color = match self.background_color.as_ref() {
             None => quote! {},
             Some(background_color) => quote! { .background_color(#background_color) },
@@ -596,6 +620,7 @@ impl ToTokens for Text {
                 #children
                 #cursor
                 #color
+                #maybe_color
                 #background_color
                 #flex_grow
                 .build()?
