@@ -7,23 +7,21 @@ use std::mem;
 use crossterm::{
     cursor,
     style::{Color, Print, SetBackgroundColor, SetForegroundColor},
-    terminal::{Clear, ClearType},
-    ExecutableCommand, QueueableCommand,
+    QueueableCommand,
 };
 use itertools::{EitherOrBoth, Itertools};
 use smallvec::{smallvec, SmallVec};
 use smol_str::{SmolStr, ToSmolStr};
-use squalid::{EverythingExt, _d};
+use squalid::{EverythingExt, OptionExt, _d};
 use tracing::instrument;
 
 use crate::{
-    size, take_over_screen, Backend, BackendCrossterm, Component, Cursor, Error, Offset, Overflow,
-    Relative, Size, Style, TakeOverScreenGuard, Text, TextChild,
+    Backend, BackendCrossterm, BackendInterface, Component, Cursor, Error, Offset, Overflow,
+    Relative, Size, Style, Text, TextChild,
 };
 
 pub struct Renderer {
     pub backend: Backend,
-    pub take_over_screen_guard: TakeOverScreenGuard,
     pub size: Size,
     pub rendered_cursor_position_in_this_render: Option<Position>,
     pub grids: [Staged; 2],
@@ -42,27 +40,20 @@ impl RendererBuilder {
     }
 
     pub fn build(self) -> Result<Renderer, Error> {
-        Renderer::try_new(
-            self.backend
-                .unwrap_or_else(|| Backend::Crossterm(BackendCrossterm::default())),
-        )
+        Renderer::try_new(self.backend.try_unwrap_or_else(|| -> Result<_, Error> {
+            Ok(Backend::Crossterm(BackendCrossterm::try_new()?))
+        })?)
     }
 }
 
 impl Renderer {
-    #[instrument(level = "trace")]
+    #[instrument(level = "trace", skip(backend))]
     pub fn try_new(backend: Backend) -> Result<Self, Error> {
-        let size = size()?;
+        let size = backend.size()?;
         let default_grid_row = StyledChunk::new(" ".repeat(usize::from(size.width)).into(), _d());
-        let mut take_over_screen_guard = take_over_screen()?;
-
-        take_over_screen_guard
-            .stdout
-            .execute(Clear(ClearType::All))
-            .map_err(|_| Error::Crossterm("clear failed".into()))?;
 
         Ok(Self {
-            take_over_screen_guard,
+            backend,
             size,
             rendered_cursor_position_in_this_render: _d(),
             last_rendered_grid_index: _d(),

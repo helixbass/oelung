@@ -2,11 +2,8 @@ use std::io::{stdout, StdoutLock};
 
 use crossterm::{
     execute,
-    terminal::{
-        self, disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
-    },
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use squalid::EverythingExt;
 use tracing::instrument;
 
 use crate::Error;
@@ -38,14 +35,4 @@ impl Drop for TakeOverScreenGuard {
         };
         let _ = disable_raw_mode();
     }
-}
-
-#[instrument(level = "trace")]
-pub fn size() -> Result<Size, Error> {
-    Ok(terminal::size()
-        .map_err(|_| Error::Crossterm("size failed".into()))?
-        .thrush(|size| Size {
-            height: size.1,
-            width: size.0,
-        }))
 }
