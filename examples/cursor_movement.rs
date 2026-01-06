@@ -5,11 +5,13 @@ use crossterm::{
     style::Color,
 };
 
-use oelung::{soft, Component, ComponentInterface, Cursor, FlexColumnBuilder, Grid, Renderer};
+use oelung::{
+    soft, Component, ComponentInterface, Cursor, FlexColumnBuilder, Grid, Renderer, RendererBuilder,
+};
 use squalid::_d;
 
 fn main() -> Result<(), anyhow::Error> {
-    let mut renderer = Renderer::try_new()?;
+    let mut renderer = RendererBuilder::default().build()?;
 
     let lines = vec![
         "Hello world".to_owned(),

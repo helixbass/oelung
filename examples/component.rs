@@ -1,9 +1,9 @@
 use crossterm::event::{self, Event, KeyCode};
 
-use oelung::{soft, Component, ComponentInterface, Grid, Renderer};
+use oelung::{soft, Component, ComponentInterface, Grid, Renderer, RendererBuilder};
 
 fn main() -> Result<(), anyhow::Error> {
-    let mut renderer = Renderer::try_new()?;
+    let mut renderer = RendererBuilder::default().build()?;
 
     let current_percent = 14;
 

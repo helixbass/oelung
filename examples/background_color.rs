@@ -3,10 +3,10 @@ use crossterm::{
     style::Color,
 };
 
-use oelung::{soft, Renderer};
+use oelung::{soft, Renderer, RendererBuilder};
 
 fn main() -> Result<(), anyhow::Error> {
-    let mut renderer = Renderer::try_new()?;
+    let mut renderer = RendererBuilder::default().build()?;
 
     render_screen(&mut renderer)?;
 
