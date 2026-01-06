@@ -633,6 +633,7 @@ enum TextChild {
     Text(LitStrOrExpr),
     Nested(Text),
     NestedComponent(Expr),
+    NestedAlreadyComponent(Expr),
 }
 
 impl Parse for TextChild {
@@ -648,6 +649,7 @@ impl Parse for TextChild {
                 // }
             }
             Element::Component(component) => Self::NestedComponent(component),
+            Element::AlreadyComponent(component) => Self::NestedAlreadyComponent(component),
             _ => return Err(input.error("Expected text child")),
         })
     }
@@ -656,15 +658,20 @@ impl Parse for TextChild {
 impl ToTokens for TextChild {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
-            TextChild::Text(text) => quote! {{
+            Self::Text(text) => quote! {{
                 use ::smol_str::ToSmolStr;
                 ::oelung::TextChild::Text({
                     #text
                 }.to_smolstr())
             }},
-            TextChild::Nested(nested) => quote! { #nested.into() },
-            TextChild::NestedComponent(nested_component) => {
+            Self::Nested(nested) => quote! { #nested.into() },
+            Self::NestedComponent(nested_component) => {
                 quote! { ::oelung::TextChild::NestedComponent(::std::rc::Rc::new(#nested_component)) }
+            }
+            Self::NestedAlreadyComponent(nested_already_component) => {
+                quote! {
+                    { #nested_already_component }.into_text_child()
+                }
             }
         }
         .to_tokens(tokens)
