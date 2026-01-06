@@ -49,9 +49,3 @@ pub fn size() -> Result<Size, Error> {
             width: size.0,
         }))
 }
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Size {
-    pub height: u16,
-    pub width: u16,
-}

@@ -17,11 +17,12 @@ use squalid::{EverythingExt, _d};
 use tracing::instrument;
 
 use crate::{
-    size, take_over_screen, Component, Cursor, Error, Offset, Overflow, Relative, Size, Style,
-    TakeOverScreenGuard, Text, TextChild,
+    size, take_over_screen, Backend, BackendCrossterm, Component, Cursor, Error, Offset, Overflow,
+    Relative, Size, Style, TakeOverScreenGuard, Text, TextChild,
 };
 
 pub struct Renderer {
+    pub backend: Backend,
     pub take_over_screen_guard: TakeOverScreenGuard,
     pub size: Size,
     pub rendered_cursor_position_in_this_render: Option<Position>,
@@ -29,9 +30,28 @@ pub struct Renderer {
     pub last_rendered_grid_index: Option<usize>,
 }
 
+#[derive(Default)]
+pub struct RendererBuilder {
+    pub backend: Option<Backend>,
+}
+
+impl RendererBuilder {
+    pub fn backend(mut self, backend: Backend) -> Self {
+        self.backend = Some(backend);
+        self
+    }
+
+    pub fn build(self) -> Result<Renderer, Error> {
+        Renderer::try_new(
+            self.backend
+                .unwrap_or_else(|| Backend::Crossterm(BackendCrossterm::default())),
+        )
+    }
+}
+
 impl Renderer {
     #[instrument(level = "trace")]
-    pub fn try_new() -> Result<Self, Error> {
+    pub fn try_new(backend: Backend) -> Result<Self, Error> {
         let size = size()?;
         let default_grid_row = StyledChunk::new(" ".repeat(usize::from(size.width)).into(), _d());
         let mut take_over_screen_guard = take_over_screen()?;
