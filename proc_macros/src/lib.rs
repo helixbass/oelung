@@ -632,7 +632,9 @@ impl ToTokens for TextChild {
         match self {
             TextChild::Text(text) => quote! {{
                 use ::smol_str::ToSmolStr;
-                ::oelung::TextChild::Text(#text.to_smolstr())
+                ::oelung::TextChild::Text({
+                    #text
+                }.to_smolstr())
             }},
             TextChild::Nested(nested) => quote! { #nested.into() },
             TextChild::NestedComponent(nested_component) => {
