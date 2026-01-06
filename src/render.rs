@@ -1,14 +1,9 @@
 use std::cell::{Cell, UnsafeCell};
 use std::cmp::Ordering;
-use std::io::Write;
 use std::iter;
 use std::mem;
 
-use crossterm::{
-    cursor,
-    style::{Color, Print, SetBackgroundColor, SetForegroundColor},
-    QueueableCommand,
-};
+use crossterm::style::Color;
 use itertools::{EitherOrBoth, Itertools};
 use smallvec::{smallvec, SmallVec};
 use smol_str::{SmolStr, ToSmolStr};
@@ -112,10 +107,7 @@ impl Renderer {
             self.backend.queue_show_cursor()?;
         }
 
-        self.take_over_screen_guard
-            .stdout
-            .flush()
-            .map_err(|_| Error::Crossterm("flush failed".into()))?;
+        self.backend.flush()?;
 
         self.last_rendered_grid_index = Some(match self.last_rendered_grid_index {
             None => 0,
@@ -169,17 +161,14 @@ impl Renderer {
                     ))
                 });
 
-            self.take_over_screen_guard
-                .stdout
-                .queue(cursor::MoveTo(
-                    match matches_prev_staged_row {
-                        None => 0,
-                        Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(_, len)) => len,
-                        Some(MatchesPrevStagedRow::MatchesWholeRow(len)) => len,
-                    },
-                    u16::try_from(row_index).unwrap(),
-                ))
-                .map_err(|_| Error::Crossterm("move to failed".into()))?;
+            self.backend.queue_move_cursor(
+                match matches_prev_staged_row {
+                    None => 0,
+                    Some(MatchesPrevStagedRow::MatchesPrefixNumChunksAndLength(_, len)) => len,
+                    Some(MatchesPrevStagedRow::MatchesWholeRow(len)) => len,
+                },
+                u16::try_from(row_index).unwrap(),
+            )?;
 
             let mut num_bytes_printed = 0;
             if !matches!(
@@ -195,44 +184,21 @@ impl Renderer {
                 }) {
                     match styled_chunk.style.color {
                         Some(color) => {
-                            self.take_over_screen_guard
-                                .stdout
-                                .queue(SetForegroundColor(color))
-                                .map_err(|_| {
-                                    Error::Crossterm("set foreground color failed".into())
-                                })?;
+                            self.backend.queue_set_foreground_color(color)?;
                         }
                         None => {
-                            self.take_over_screen_guard
-                                .stdout
-                                .queue(SetForegroundColor(Color::Reset))
-                                .map_err(|_| {
-                                    Error::Crossterm("set foreground color failed".into())
-                                })?;
+                            self.backend.queue_set_foreground_color(Color::Reset)?;
                         }
                     }
                     match styled_chunk.style.background_color {
                         Some(background_color) => {
-                            self.take_over_screen_guard
-                                .stdout
-                                .queue(SetBackgroundColor(background_color))
-                                .map_err(|_| {
-                                    Error::Crossterm("set background color failed".into())
-                                })?;
+                            self.backend.queue_set_background_color(background_color)?;
                         }
                         None => {
-                            self.take_over_screen_guard
-                                .stdout
-                                .queue(SetBackgroundColor(Color::Reset))
-                                .map_err(|_| {
-                                    Error::Crossterm("set background color failed".into())
-                                })?;
+                            self.backend.queue_set_background_color(Color::Reset)?;
                         }
                     }
-                    self.take_over_screen_guard
-                        .stdout
-                        .queue(Print(styled_chunk.str.clone()))
-                        .map_err(|_| Error::Crossterm("print failed".into()))?;
+                    self.backend.queue_print(styled_chunk.str.clone())?;
                     num_bytes_printed += u16::try_from(styled_chunk.str.len()).unwrap();
                 }
             }
@@ -250,12 +216,9 @@ impl Renderer {
                     Some(MatchesPrevStagedRow::MatchesWholeRow(len)) => len,
                 } + num_bytes_printed;
                 if total_num_bytes_printed_so_far_this_row < prev_staged_row_len {
-                    self.take_over_screen_guard
-                        .stdout
-                        .queue(Print(" ".repeat(usize::from(
-                            prev_staged_row_len - total_num_bytes_printed_so_far_this_row,
-                        ))))
-                        .map_err(|_| Error::Crossterm("print failed".into()))?;
+                    self.backend.queue_print(" ".repeat(usize::from(
+                        prev_staged_row_len - total_num_bytes_printed_so_far_this_row,
+                    )))?;
                 }
             }
         }

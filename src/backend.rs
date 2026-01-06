@@ -1,7 +1,9 @@
+use std::fmt::Display;
 use std::io::Write;
 
 use crossterm::{
     cursor,
+    style::{Color, Print, SetBackgroundColor, SetForegroundColor},
     terminal::{self, Clear, ClearType},
     ExecutableCommand, QueueableCommand,
 };
@@ -52,6 +54,27 @@ impl BackendInterface for Backend {
         match self {
             Self::Crossterm(crossterm) => crossterm.flush(),
             Self::Memory(memory) => memory.flush(),
+        }
+    }
+
+    fn queue_set_foreground_color(&mut self, color: Color) -> Result<(), Error> {
+        match self {
+            Self::Crossterm(crossterm) => crossterm.queue_set_foreground_color(color),
+            Self::Memory(memory) => memory.queue_set_foreground_color(color),
+        }
+    }
+
+    fn queue_set_background_color(&mut self, color: Color) -> Result<(), Error> {
+        match self {
+            Self::Crossterm(crossterm) => crossterm.queue_set_background_color(color),
+            Self::Memory(memory) => memory.queue_set_background_color(color),
+        }
+    }
+
+    fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error> {
+        match self {
+            Self::Crossterm(crossterm) => crossterm.queue_print(value),
+            Self::Memory(memory) => memory.queue_print(value),
         }
     }
 }
@@ -125,11 +148,40 @@ impl BackendInterface for BackendCrossterm {
 
         Ok(())
     }
+
+    fn queue_set_foreground_color(&mut self, color: Color) -> Result<(), Error> {
+        self.take_over_screen_guard
+            .stdout
+            .queue(SetForegroundColor(color))
+            .map_err(|_| Error::Crossterm("set foreground color failed".into()))?;
+
+        Ok(())
+    }
+
+    fn queue_set_background_color(&mut self, color: Color) -> Result<(), Error> {
+        self.take_over_screen_guard
+            .stdout
+            .queue(SetBackgroundColor(color))
+            .map_err(|_| Error::Crossterm("set background color failed".into()))?;
+
+        Ok(())
+    }
+
+    fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error> {
+        self.take_over_screen_guard
+            .stdout
+            .queue(Print(value))
+            .map_err(|_| Error::Crossterm("print failed".into()))?;
+
+        Ok(())
+    }
 }
 
 pub struct BackendMemory {
     pub size: Size,
     pub cursor_position: Option<Position>,
+    pub foreground_color: Option<Color>,
+    pub background_color: Option<Color>,
 }
 
 impl BackendMemory {
@@ -137,6 +189,8 @@ impl BackendMemory {
         Self {
             size,
             cursor_position: _d(),
+            foreground_color: _d(),
+            background_color: _d(),
         }
     }
 }
@@ -167,6 +221,22 @@ impl BackendInterface for BackendMemory {
     fn flush(&mut self) -> Result<(), Error> {
         Ok(())
     }
+
+    fn queue_set_foreground_color(&mut self, color: Color) -> Result<(), Error> {
+        self.foreground_color = Some(color);
+
+        Ok(())
+    }
+
+    fn queue_set_background_color(&mut self, color: Color) -> Result<(), Error> {
+        self.background_color = Some(color);
+
+        Ok(())
+    }
+
+    fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error> {
+        unimplemented!()
+    }
 }
 
 pub trait BackendInterface {
@@ -179,6 +249,9 @@ pub trait BackendInterface {
     ) -> Result<(), Error>;
     fn queue_show_cursor(&mut self) -> Result<(), Error>;
     fn flush(&mut self) -> Result<(), Error>;
+    fn queue_set_foreground_color(&mut self, color: Color) -> Result<(), Error>;
+    fn queue_set_background_color(&mut self, color: Color) -> Result<(), Error>;
+    fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error>;
 }
 
 pub type RowOrColumnNumber = u16;
