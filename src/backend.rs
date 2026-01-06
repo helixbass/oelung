@@ -180,8 +180,10 @@ impl BackendInterface for BackendCrossterm {
 pub struct BackendMemory {
     pub size: Size,
     pub cursor_position: Option<Position>,
-    pub foreground_color: Option<Color>,
-    pub background_color: Option<Color>,
+    pub foreground_color: Color,
+    pub background_color: Color,
+    pub grid: Vec<Vec<Cell>>,
+    pub is_cursor_shown: bool,
 }
 
 impl BackendMemory {
@@ -189,8 +191,10 @@ impl BackendMemory {
         Self {
             size,
             cursor_position: _d(),
-            foreground_color: _d(),
-            background_color: _d(),
+            foreground_color: Color::Reset,
+            background_color: Color::Reset,
+            grid: vec![vec![_d(); usize::from(size.width)]; usize::from(size.height)],
+            is_cursor_shown: false,
         }
     }
 }
@@ -201,6 +205,8 @@ impl BackendInterface for BackendMemory {
     }
 
     fn queue_hide_cursor(&mut self) -> Result<(), Error> {
+        self.is_cursor_shown = false;
+
         Ok(())
     }
 
@@ -215,6 +221,8 @@ impl BackendInterface for BackendMemory {
     }
 
     fn queue_show_cursor(&mut self) -> Result<(), Error> {
+        self.is_cursor_shown = true;
+
         Ok(())
     }
 
@@ -223,19 +231,47 @@ impl BackendInterface for BackendMemory {
     }
 
     fn queue_set_foreground_color(&mut self, color: Color) -> Result<(), Error> {
-        self.foreground_color = Some(color);
+        self.foreground_color = color;
 
         Ok(())
     }
 
     fn queue_set_background_color(&mut self, color: Color) -> Result<(), Error> {
-        self.background_color = Some(color);
+        self.background_color = color;
 
         Ok(())
     }
 
     fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error> {
-        unimplemented!()
+        let cursor_position = self.cursor_position.unwrap();
+        let value = value.to_string();
+        for (index, ch) in value.chars().enumerate() {
+            self.grid[usize::from(cursor_position.row)]
+                [usize::from(cursor_position.column) + index] = Cell {
+                content: ch,
+                foreground_color: self.foreground_color,
+                background_color: self.background_color,
+            };
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Cell {
+    pub content: char,
+    pub foreground_color: Color,
+    pub background_color: Color,
+}
+
+impl Default for Cell {
+    fn default() -> Self {
+        Self {
+            content: ' ',
+            foreground_color: Color::Reset,
+            background_color: Color::Reset,
+        }
     }
 }
 
