@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{Absolute, FlexColumn, FlexRow, Grid, Text};
+use crate::{Absolute, FlexColumn, FlexRow, Grid, Text, TextChild};
 
 #[derive(Clone)]
 pub enum Component<'a> {
@@ -30,6 +30,14 @@ impl<'a> Component<'a> {
         match self {
             Self::Absolute(absolute) => absolute,
             _ => panic!("expected absolute"),
+        }
+    }
+
+    pub fn into_text_child(self) -> TextChild<'a> {
+        match self {
+            Self::Component(component) => TextChild::NestedComponent(component),
+            Self::Text(text) => TextChild::Nested(Rc::new(text)),
+            _ => panic!("expected component or text"),
         }
     }
 
