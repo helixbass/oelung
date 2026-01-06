@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use crossterm::{
     cursor,
     terminal::{self, Clear, ClearType},
@@ -43,6 +45,13 @@ impl BackendInterface for Backend {
         match self {
             Self::Crossterm(crossterm) => crossterm.queue_show_cursor(),
             Self::Memory(memory) => memory.queue_show_cursor(),
+        }
+    }
+
+    fn flush(&mut self) -> Result<(), Error> {
+        match self {
+            Self::Crossterm(crossterm) => crossterm.flush(),
+            Self::Memory(memory) => memory.flush(),
         }
     }
 }
@@ -107,6 +116,15 @@ impl BackendInterface for BackendCrossterm {
 
         Ok(())
     }
+
+    fn flush(&mut self) -> Result<(), Error> {
+        self.take_over_screen_guard
+            .stdout
+            .flush()
+            .map_err(|_| Error::Crossterm("flush failed".into()))?;
+
+        Ok(())
+    }
 }
 
 pub struct BackendMemory {
@@ -145,6 +163,10 @@ impl BackendInterface for BackendMemory {
     fn queue_show_cursor(&mut self) -> Result<(), Error> {
         Ok(())
     }
+
+    fn flush(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
 pub trait BackendInterface {
@@ -156,6 +178,7 @@ pub trait BackendInterface {
         row: RowOrColumnNumber,
     ) -> Result<(), Error>;
     fn queue_show_cursor(&mut self) -> Result<(), Error>;
+    fn flush(&mut self) -> Result<(), Error>;
 }
 
 pub type RowOrColumnNumber = u16;

@@ -17,7 +17,7 @@ use tracing::instrument;
 
 use crate::{
     Backend, BackendCrossterm, BackendInterface, Component, Cursor, Error, Offset, Overflow,
-    Relative, Size, Style, Text, TextChild,
+    Position, Relative, Size, Style, Text, TextChild,
 };
 
 pub struct Renderer {
@@ -107,14 +107,9 @@ impl Renderer {
         self.render_staged()?;
 
         if let Some(cursor_position) = self.rendered_cursor_position_in_this_render {
-            self.take_over_screen_guard
-                .stdout
-                .queue(cursor::MoveTo(cursor_position.column, cursor_position.row))
-                .map_err(|_| Error::Crossterm("move to failed".into()))?;
-            self.take_over_screen_guard
-                .stdout
-                .queue(cursor::Show)
-                .map_err(|_| Error::Crossterm("show failed".into()))?;
+            self.backend
+                .queue_move_cursor(cursor_position.column, cursor_position.row)?;
+            self.backend.queue_show_cursor()?;
         }
 
         self.take_over_screen_guard
