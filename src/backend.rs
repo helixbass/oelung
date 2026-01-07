@@ -259,6 +259,7 @@ impl BackendInterface for BackendMemory {
     fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error> {
         let cursor_position = self.cursor_position.unwrap();
         let value = value.to_string();
+        let value_len = value.len();
         for (index, ch) in value.chars().enumerate() {
             self.grid[usize::from(cursor_position.row)]
                 [usize::from(cursor_position.column) + index] = Cell {
@@ -267,6 +268,10 @@ impl BackendInterface for BackendMemory {
                 background_color: self.background_color,
             };
         }
+        self.cursor_position = Some(Position {
+            row: cursor_position.row,
+            column: cursor_position.column + u16::try_from(value_len).unwrap(),
+        });
 
         Ok(())
     }
