@@ -108,6 +108,7 @@ impl Renderer {
         }
 
         self.backend.flush()?;
+        self.backend.finished_render();
 
         self.last_rendered_grid_index = Some(match self.last_rendered_grid_index {
             None => 0,

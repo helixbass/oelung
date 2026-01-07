@@ -79,6 +79,13 @@ impl BackendInterface for Backend {
             Self::Memory(memory) => memory.borrow_mut().queue_print(value),
         }
     }
+
+    fn finished_render(&mut self) {
+        match self {
+            Self::Crossterm(crossterm) => crossterm.finished_render(),
+            Self::Memory(memory) => memory.borrow_mut().finished_render(),
+        }
+    }
 }
 
 impl From<BackendCrossterm> for Backend {
@@ -198,6 +205,7 @@ pub struct BackendMemory {
     pub background_color: Color,
     pub grid: Vec<Vec<Cell>>,
     pub is_cursor_shown: bool,
+    pub rendered_grids: Vec<Vec<Vec<Cell>>>,
 }
 
 impl BackendMemory {
@@ -209,6 +217,7 @@ impl BackendMemory {
             background_color: Color::Reset,
             grid: vec![vec![_d(); usize::from(size.width)]; usize::from(size.height)],
             is_cursor_shown: false,
+            rendered_grids: _d(),
         }
     }
 }
@@ -275,6 +284,10 @@ impl BackendInterface for BackendMemory {
 
         Ok(())
     }
+
+    fn finished_render(&mut self) {
+        self.rendered_grids.push(self.grid.clone());
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -307,6 +320,7 @@ pub trait BackendInterface {
     fn queue_set_foreground_color(&mut self, color: Color) -> Result<(), Error>;
     fn queue_set_background_color(&mut self, color: Color) -> Result<(), Error>;
     fn queue_print<TDisplay: Display>(&mut self, value: TDisplay) -> Result<(), Error>;
+    fn finished_render(&mut self) {}
 }
 
 pub type RowOrColumnNumber = u16;
