@@ -220,6 +220,10 @@ impl BackendMemory {
             rendered_grids: _d(),
         }
     }
+
+    pub fn current_cursor_position(&self) -> Option<Position> {
+        self.is_cursor_shown.then(|| self.cursor_position.unwrap())
+    }
 }
 
 impl BackendInterface for BackendMemory {
@@ -290,7 +294,7 @@ impl BackendInterface for BackendMemory {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Cell {
     pub content: char,
     pub foreground_color: Color,
