@@ -205,7 +205,7 @@ pub struct BackendMemory {
     pub background_color: Color,
     pub grid: Vec<Vec<Cell>>,
     pub is_cursor_shown: bool,
-    pub rendered_grids: Vec<Vec<Vec<Cell>>>,
+    pub rendered_grids: Vec<(Vec<Vec<Cell>>, Option<Position>)>,
 }
 
 impl BackendMemory {
@@ -290,7 +290,8 @@ impl BackendInterface for BackendMemory {
     }
 
     fn finished_render(&mut self) {
-        self.rendered_grids.push(self.grid.clone());
+        self.rendered_grids
+            .push((self.grid.clone(), self.current_cursor_position()));
     }
 }
 
