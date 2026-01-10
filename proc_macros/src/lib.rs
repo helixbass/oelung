@@ -440,6 +440,7 @@ struct Text {
     pub color: Option<Expr>,
     pub maybe_color: Option<Expr>,
     pub background_color: Option<Expr>,
+    pub maybe_background_color: Option<Expr>,
     pub flex_grow: Option<LitFloatOrInt>,
 }
 
@@ -451,6 +452,7 @@ impl Parse for Text {
         let mut color: Option<Expr> = _d();
         let mut maybe_color: Option<Expr> = _d();
         let mut background_color: Option<Expr> = _d();
+        let mut maybe_background_color: Option<Expr> = _d();
         let mut flex_grow: Option<LitFloatOrInt> = _d();
 
         let me_percent_sign_start_column = illicit::expect::<MePercentSignStartColumn>();
@@ -529,7 +531,23 @@ impl Parse for Text {
                                             background_color.is_none(),
                                             "Already saw 'background_color' key"
                                         );
+                                        assert!(
+                                            maybe_background_color.is_none(),
+                                            "Can't use both 'background_color' and 'maybe_background_color'"
+                                        );
                                         background_color =
+                                            Some(input.parse::<LessThanBinaryExpr>()?.expr);
+                                    }
+                                    "maybe_background_color" => {
+                                        assert!(
+                                            maybe_background_color.is_none(),
+                                            "Already saw 'maybe_background_color' key"
+                                        );
+                                        assert!(
+                                            background_color.is_none(),
+                                            "Can't use both 'background_color' and 'maybe_background_color'"
+                                        );
+                                        maybe_background_color =
                                             Some(input.parse::<LessThanBinaryExpr>()?.expr);
                                     }
                                     "flex_grow" => {
@@ -574,6 +592,7 @@ impl Parse for Text {
             color,
             maybe_color,
             background_color,
+            maybe_background_color,
             flex_grow,
         })
     }
@@ -610,6 +629,13 @@ impl ToTokens for Text {
             Some(background_color) => quote! { .background_color(#background_color) },
         };
 
+        let maybe_background_color = match self.maybe_background_color.as_ref() {
+            None => quote! {},
+            Some(maybe_background_color) => {
+                quote! { .maybe_background_color(#maybe_background_color) }
+            }
+        };
+
         let flex_grow = match self.flex_grow.as_ref() {
             None => quote! {},
             Some(flex_grow) => quote! { .flex_grow(#flex_grow) },
@@ -622,6 +648,7 @@ impl ToTokens for Text {
                 #color
                 #maybe_color
                 #background_color
+                #maybe_background_color
                 #flex_grow
                 .build()?
         }

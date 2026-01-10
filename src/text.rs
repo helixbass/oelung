@@ -91,6 +91,11 @@ impl<'a> TextBuilder<'a> {
         self
     }
 
+    pub fn maybe_background_color(mut self, color: Option<Color>) -> Self {
+        self.background_color = color;
+        self
+    }
+
     pub fn flex_grow(mut self, flex_grow: impl Into<f64>) -> Self {
         self.flex_grow = Some(flex_grow.into());
         self
